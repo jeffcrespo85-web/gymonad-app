@@ -7,28 +7,30 @@ export class SoundEffects {
 
     try {
       const soundFiles = [
-        { key: "swordClash1", src: "/sounds/sword-clash-1.mp3" },
-        { key: "swordClash2", src: "/sounds/sword-clash-2.mp3" },
-        { key: "swordClash3", src: "/sounds/sword-clash-3.mp3" },
+        { key: "swordClash1", src: "" },
+        { key: "swordClash2", src: "" },
+        { key: "swordClash3", src: "" },
       ]
 
       soundFiles.forEach(({ key, src }) => {
         const audio = new Audio()
         audio.volume = 0.3
-        audio.preload = "none" // Don't preload to avoid errors
+        audio.preload = "none"
 
-        audio.addEventListener("error", () => {
-          console.log(`[v0] Sound ${key} failed to load`)
+        audio.addEventListener("error", (e) => {
+          console.log(`[v0] Sound ${key} failed to load - gracefully handled`)
         })
 
-        // audio.src = src
+        if (src) {
+          audio.src = src
+        }
         this.sounds[key] = audio
       })
 
       this.soundsLoaded = true
-      console.log("[v0] Sound effects initialized")
+      console.log("[v0] Sound effects initialized without audio files")
     } catch (error) {
-      console.log("[v0] Sound effects initialization failed:", error)
+      console.log("[v0] Sound effects initialization failed - gracefully handled:", error)
     }
   }
 
@@ -38,15 +40,17 @@ export class SoundEffects {
     const soundKey = `swordClash${variant}`
     const sound = this.sounds[soundKey]
 
-    if (sound) {
+    if (sound && sound.src) {
       try {
         sound.currentTime = 0
         sound.play().catch((e) => {
-          console.log(`[v0] Audio play failed for ${soundKey}:`, e)
+          console.log(`[v0] Audio play failed for ${soundKey} - gracefully handled`)
         })
       } catch (error) {
-        console.log(`[v0] Sound playback error for ${soundKey}:`, error)
+        console.log(`[v0] Sound playback error for ${soundKey} - gracefully handled`)
       }
+    } else {
+      console.log(`[v0] Sound ${soundKey} not available - silent mode`)
     }
   }
 
@@ -63,11 +67,10 @@ export class SoundEffects {
   }
 }
 
-// Initialize sounds when module loads
 if (typeof window !== "undefined") {
-  window.addEventListener("load", () => {
+  setTimeout(() => {
     SoundEffects.preloadSounds()
-  })
+  }, 1000)
 }
 
 export function playSound(soundType: string) {

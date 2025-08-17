@@ -8,40 +8,49 @@ export function BackgroundMusic() {
   const [isPlaying, setIsPlaying] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
   const [audioError, setAudioError] = useState(false)
+  const [audioLoaded, setAudioLoaded] = useState(false)
   const audioRef = useRef<HTMLAudioElement>(null)
 
   useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
 
-    const handleAudioError = () => {
-      console.log("[v0] Background music failed to load")
+    const handleAudioError = (e: Event) => {
+      console.log("[v0] Background music failed to load - gracefully handling")
       setAudioError(true)
+      setAudioLoaded(false)
     }
 
     const handleAudioCanPlay = () => {
       console.log("[v0] Background music loaded successfully")
       setAudioError(false)
+      setAudioLoaded(true)
+    }
+
+    const handleLoadStart = () => {
+      console.log("[v0] Background music loading started")
     }
 
     audio.addEventListener("error", handleAudioError)
     audio.addEventListener("canplay", handleAudioCanPlay)
+    audio.addEventListener("loadstart", handleLoadStart)
 
     // Set initial properties
     audio.loop = true
-    audio.volume = 0.3 // Keep it subtle in the background
+    audio.volume = 0.3
+    audio.preload = "none"
 
-    // Auto-play after user interaction
+    // Auto-play after user interaction - only if audio loaded successfully
     const handleFirstInteraction = () => {
-      if (!isPlaying && !audioError) {
+      if (!isPlaying && !audioError && audioLoaded) {
         audio
           .play()
           .then(() => {
             setIsPlaying(true)
           })
           .catch((e) => {
-            console.log("[v0] Audio autoplay failed:", e)
-            setAudioError(true)
+            console.log("[v0] Audio autoplay failed - this is normal on some browsers")
+            // Don't set audioError here as autoplay failure is common and expected
           })
       }
       document.removeEventListener("click", handleFirstInteraction)
@@ -54,14 +63,15 @@ export function BackgroundMusic() {
     return () => {
       audio.removeEventListener("error", handleAudioError)
       audio.removeEventListener("canplay", handleAudioCanPlay)
+      audio.removeEventListener("loadstart", handleLoadStart)
       document.removeEventListener("click", handleFirstInteraction)
       document.removeEventListener("keydown", handleFirstInteraction)
     }
-  }, [isPlaying, audioError])
+  }, [isPlaying, audioError, audioLoaded])
 
   const togglePlayback = () => {
     const audio = audioRef.current
-    if (!audio || audioError) return
+    if (!audio || audioError || !audioLoaded) return
 
     if (isPlaying) {
       audio.pause()
@@ -73,21 +83,21 @@ export function BackgroundMusic() {
           setIsPlaying(true)
         })
         .catch((e) => {
-          console.log("[v0] Audio play failed:", e)
-          setAudioError(true)
+          console.log("[v0] Audio play failed:", e.message)
+          // Don't set audioError for play failures
         })
     }
   }
 
   const toggleMute = () => {
     const audio = audioRef.current
-    if (!audio || audioError) return
+    if (!audio || audioError || !audioLoaded) return
 
     audio.muted = !isMuted
     setIsMuted(!isMuted)
   }
 
-  if (audioError) {
+  if (audioError || !audioLoaded) {
     return null
   }
 
@@ -107,7 +117,7 @@ export function BackgroundMusic() {
         </div>
       </div>
 
-      <audio ref={audioRef} src="/sounds/epic-ancient-battle-soundtrack.mp3" preload="none" />
+      <audio ref={audioRef} preload="none" />
     </div>
   )
 }
