@@ -80,7 +80,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -103,7 +103,7 @@ html {
 }
         `}</style>
       </head>
-      <body className={`${cinzel.variable} touch-manipulation`}>
+      <body className={`${cinzel.variable} touch-manipulation`} suppressHydrationWarning>
         <Web3Provider>{children}</Web3Provider>
       </body>
     </html>

@@ -13,6 +13,26 @@ const nextConfig = {
   experimental: {
     optimizeCss: true,
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
+    esmExternals: 'loose', // Disable static optimization for pages with Web3 components
+  },
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        crypto: false,
+      }
+    }
+    
+    // Handle pino-pretty optional dependency
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      'pino-pretty': false,
+    }
+    
+    return config
   },
   compress: true,
   poweredByHeader: false,
