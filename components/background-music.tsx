@@ -120,4 +120,7 @@ export function BackgroundMusic() {
       <audio ref={audioRef} preload="none" />
     </div>
   )
-}
+<audio controls src="/gymonadtheme.mp3">
+  Your browser does not support the audio element.
+</audio>
+
