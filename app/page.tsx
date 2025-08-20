@@ -706,95 +706,8 @@ export default function GymonadFitness() {
 
   return (
     <div className={`min-h-screen bg-black relative overflow-hidden ${isLightning ? "bg-white" : ""}`}>
-      <div className="fixed inset-0 pointer-events-none z-20">
-        {/* Right border skulls */}
-        <img
-          src="/images/purple-skull.jpg"
-          alt="Purple Skull"
-          className="absolute right-2 top-1/4 w-24 h-24 opacity-90"
-          style={{
-            filter: "brightness(1.3) contrast(1.2) drop-shadow(0 0 15px #a855f7) drop-shadow(0 0 30px #7c3aed)",
-            animation: "skullGlow 3s ease-in-out infinite alternate",
-          }}
-        />
-        <img
-          src="/images/purple-skull.jpg"
-          alt="Purple Skull"
-          className="absolute right-2 top-1/2 w-24 h-24 opacity-90"
-          style={{
-            filter: "brightness(1.3) contrast(1.2) drop-shadow(0 0 15px #a855f7) drop-shadow(0 0 30px #7c3aed)",
-            animation: "skullGlow 3s ease-in-out infinite alternate",
-            animationDelay: "1s",
-          }}
-        />
-        <img
-          src="/images/purple-skull.jpg"
-          alt="Purple Skull"
-          className="absolute right-2 top-3/4 w-24 h-24 opacity-90"
-          style={{
-            filter: "brightness(1.3) contrast(1.2) drop-shadow(0 0 15px #a855f7) drop-shadow(0 0 30px #7c3aed)",
-            animation: "skullGlow 3s ease-in-out infinite alternate",
-            animationDelay: "2s",
-          }}
-        />
-
-        {/* Left border skulls */}
-        <img
-          src="/images/purple-skull.jpg"
-          alt="Purple Skull"
-          className="absolute left-2 top-1/4 w-24 h-24 opacity-90"
-          style={{
-            filter: "brightness(1.3) contrast(1.2) drop-shadow(0 0 15px #a855f7) drop-shadow(0 0 30px #7c3aed)",
-            animation: "skullGlow 3s ease-in-out infinite alternate",
-            animationDelay: "0.5s",
-          }}
-        />
-        <img
-          src="/images/purple-skull.jpg"
-          alt="Purple Skull"
-          className="absolute left-2 top-1/2 w-24 h-24 opacity-90"
-          style={{
-            filter: "brightness(1.3) contrast(1.2) drop-shadow(0 0 15px #a855f7) drop-shadow(0 0 30px #7c3aed)",
-            animation: "skullGlow 3s ease-in-out infinite alternate",
-            animationDelay: "1.5s",
-          }}
-        />
-        <img
-          src="/images/purple-skull.jpg"
-          alt="Purple Skull"
-          className="absolute left-2 top-3/4 w-24 h-24 opacity-90"
-          style={{
-            filter: "brightness(1.3) contrast(1.2) drop-shadow(0 0 15px #a855f7) drop-shadow(0 0 30px #7c3aed)",
-            animation: "skullGlow 3s ease-in-out infinite alternate",
-            animationDelay: "2.5s",
-          }}
-        />
-
-        <style jsx>{`
-          @keyframes skullGlow {
-            0% { 
-              filter: brightness(1.3) contrast(1.2) drop-shadow(0 0 15px #a855f7) drop-shadow(0 0 30px #7c3aed);
-            }
-            100% { 
-              filter: brightness(1.6) contrast(1.4) drop-shadow(0 0 25px #a855f7) drop-shadow(0 0 50px #7c3aed) drop-shadow(0 0 75px #8b5cf6);
-            }
-          }
-          
-          @keyframes float {
-            0%, 100% { transform: translateY(0px) translateX(0px); }
-            25% { transform: translateY(-20px) translateX(10px); }
-            50% { transform: translateY(-10px) translateX(-5px); }
-            75% { transform: translateY(-30px) translateX(15px); }
-          }
-          
-          @keyframes fade {
-            0% { opacity: 0.1; }
-            100% { opacity: 0.4; }
-          }
-        `}</style>
-      </div>
-
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {/* Purple smoke and cloud effects */}
+      <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-0 w-full h-full">
           <div
             className="absolute top-10 left-10 w-64 h-64 rounded-full opacity-30 animate-pulse"
@@ -834,6 +747,7 @@ export default function GymonadFitness() {
         </div>
       </div>
 
+      {/* Lightning effects */}
       {isLightning && (
         <div className="absolute inset-0 pointer-events-none z-10">
           <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -878,379 +792,492 @@ export default function GymonadFitness() {
         </div>
       )}
 
-      <div className="text-center mb-8">
-        <div className="mb-6">
-          {/* Cropped header image to show only top 2/3 by cutting bottom third */}
-          <div className="w-full max-w-2xl mx-auto rounded-lg shadow-2xl overflow-hidden">
-            <img src="/images/gymonad-header.jpg" alt="GYMONAD Team" className="w-full h-64 object-cover object-top" />
+      {/* Main content container with integrated skulls */}
+      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen p-4">
+        <div className="absolute left-8 top-32 w-20 h-20 opacity-80">
+          <img
+            src="/images/purple-skull.png"
+            alt="Purple Skull"
+            className="w-full h-full"
+            style={{
+              filter: "brightness(1.3) contrast(1.2) drop-shadow(0 0 15px #a855f7) drop-shadow(0 0 30px #7c3aed)",
+              animation: "skullGlow 3s ease-in-out infinite alternate",
+            }}
+          />
+        </div>
+
+        <div className="absolute right-8 top-32 w-20 h-20 opacity-80">
+          <img
+            src="/images/purple-skull.png"
+            alt="Purple Skull"
+            className="w-full h-full"
+            style={{
+              filter: "brightness(1.3) contrast(1.2) drop-shadow(0 0 15px #a855f7) drop-shadow(0 0 30px #7c3aed)",
+              animation: "skullGlow 3s ease-in-out infinite alternate",
+              animationDelay: "1s",
+            }}
+          />
+        </div>
+
+        <div className="absolute left-8 bottom-32 w-20 h-20 opacity-80">
+          <img
+            src="/images/purple-skull.png"
+            alt="Purple Skull"
+            className="w-full h-full"
+            style={{
+              filter: "brightness(1.3) contrast(1.2) drop-shadow(0 0 15px #a855f7) drop-shadow(0 0 30px #7c3aed)",
+              animation: "skullGlow 3s ease-in-out infinite alternate",
+              animationDelay: "2s",
+            }}
+          />
+        </div>
+
+        <div className="absolute right-8 bottom-32 w-20 h-20 opacity-80">
+          <img
+            src="/images/purple-skull.png"
+            alt="Purple Skull"
+            className="w-full h-full"
+            style={{
+              filter: "brightness(1.3) contrast(1.2) drop-shadow(0 0 15px #a855f7) drop-shadow(0 0 30px #7c3aed)",
+              animation: "skullGlow 3s ease-in-out infinite alternate",
+              animationDelay: "1.5s",
+            }}
+          />
+        </div>
+
+        <div className="absolute left-16 top-1/2 w-20 h-20 opacity-80">
+          <img
+            src="/images/purple-skull.png"
+            alt="Purple Skull"
+            className="w-full h-full"
+            style={{
+              filter: "brightness(1.3) contrast(1.2) drop-shadow(0 0 15px #a855f7) drop-shadow(0 0 30px #7c3aed)",
+              animation: "skullGlow 3s ease-in-out infinite alternate",
+              animationDelay: "0.5s",
+            }}
+          />
+        </div>
+
+        <div className="absolute right-16 top-1/2 w-20 h-20 opacity-80">
+          <img
+            src="/images/purple-skull.png"
+            alt="Purple Skull"
+            className="w-full h-full"
+            style={{
+              filter: "brightness(1.3) contrast(1.2) drop-shadow(0 0 15px #a855f7) drop-shadow(0 0 30px #7c3aed)",
+              animation: "skullGlow 3s ease-in-out infinite alternate",
+              animationDelay: "2.5s",
+            }}
+          />
+        </div>
+
+        <div className="text-center mb-8">
+          <div className="mb-6">
+            {/* Cropped header image to show only top 2/3 by cutting bottom third */}
+            <div className="w-full max-w-2xl mx-auto rounded-lg shadow-2xl overflow-hidden">
+              <img
+                src="/images/gymonad-header.jpg"
+                alt="GYMONAD Team"
+                className="w-full h-64 object-cover object-top"
+              />
+            </div>
+          </div>
+
+          <h1
+            className="text-6xl font-bold mb-4 font-serif tracking-wider text-yellow-500"
+            style={{
+              WebkitTextStroke: "2px #fbbf24",
+              textShadow: "0 0 20px rgba(251, 191, 36, 0.8), 0 0 40px rgba(251, 191, 36, 0.6)",
+            }}
+          >
+            GYMONAD
+          </h1>
+          <p className="text-purple-300 text-lg mb-4">Track your fitness journey in the Monad ecosystem</p>
+
+          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-yellow-500/20 to-amber-500/20 border border-yellow-500/30 rounded-lg px-4 py-2 mb-4">
+            <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center text-black font-bold text-sm">
+              T
+            </div>
+            <span className="text-yellow-400 font-bold text-lg">{tickets}</span>
+            <span className="text-yellow-300 text-sm">Tickets</span>
           </div>
         </div>
 
-        <h1
-          className="text-6xl font-bold mb-4 font-serif tracking-wider text-yellow-500"
-          style={{
-            WebkitTextStroke: "2px #fbbf24",
-            textShadow: "0 0 20px rgba(251, 191, 36, 0.8), 0 0 40px rgba(251, 191, 36, 0.6)",
-          }}
-        >
-          GYMONAD
-        </h1>
-        <p className="text-purple-300 text-lg mb-4">Track your fitness journey in the Monad ecosystem</p>
-
-        <div className="inline-flex items-center gap-2 bg-gradient-to-r from-yellow-500/20 to-amber-500/20 border border-yellow-500/30 rounded-lg px-4 py-2 mb-4">
-          <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center text-black font-bold text-sm">
-            T
-          </div>
-          <span className="text-yellow-400 font-bold text-lg">{tickets}</span>
-          <span className="text-yellow-300 text-sm">Tickets</span>
-        </div>
-      </div>
-
-      <div className="grid gap-6 max-w-md mx-auto px-4">
-        <Card className="bg-purple-100 border-purple-300 shadow-lg">
-          <CardHeader className="text-center">
-            <CardTitle className="flex items-center justify-center gap-2 text-purple-900">
-              <Activity className="h-6 w-6 text-purple-600" />
-              Step Counter
-            </CardTitle>
-            <CardDescription className="text-purple-700">
-              Daily step tracking • 1 ticket per 2,000 steps
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="text-center">
-              <div className="text-4xl font-bold text-purple-600">{steps.toLocaleString()}</div>
-              <div className="text-sm text-purple-700">of {dailyGoal.toLocaleString()} steps</div>
-              {autoStepTracking && (
-                <div className="text-xs text-purple-600 mt-1">Distance: {totalDistance.toFixed(0)}m tracked</div>
-              )}
-            </div>
-
-            <Progress value={progressPercentage} className="h-3 bg-purple-200 [&>div]:bg-purple-500" />
-
-            <div className="text-center text-sm text-purple-700">
-              {progressPercentage >= 100 ? (
-                <Badge variant="default" className="bg-purple-500 text-white">
-                  🎉 Goal Achieved!
-                </Badge>
-              ) : (
-                `${Math.round(progressPercentage)}% complete`
-              )}
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-amber-800 font-medium">Auto Step Tracking</span>
-                <button
-                  onClick={() => {
-                    if (autoStepTracking) {
-                      stopLocationTracking()
-                    } else {
-                      startLocationTracking()
-                    }
-                  }}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                    autoStepTracking ? "bg-amber-500 text-white" : "bg-amber-100 text-amber-800 hover:bg-amber-200"
-                  }`}
-                >
-                  {autoStepTracking ? "Stop GPS Tracking" : "Start GPS Tracking"}
-                </button>
+        <div className="grid gap-6 max-w-md mx-auto px-4">
+          <Card className="bg-purple-100 border-purple-300 shadow-lg">
+            <CardHeader className="text-center">
+              <CardTitle className="flex items-center justify-center gap-2 text-purple-900">
+                <Activity className="h-6 w-6 text-purple-600" />
+                Step Counter
+              </CardTitle>
+              <CardDescription className="text-purple-700">
+                Daily step tracking • 1 ticket per 2,000 steps
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-center">
+                <div className="text-4xl font-bold text-purple-600">{steps.toLocaleString()}</div>
+                <div className="text-sm text-purple-700">of {dailyGoal.toLocaleString()} steps</div>
+                {autoStepTracking && (
+                  <div className="text-xs text-purple-600 mt-1">Distance: {totalDistance.toFixed(0)}m tracked</div>
+                )}
               </div>
-              {autoStepTracking && stepLocation && (
-                <p className="text-sm text-amber-700">📍 GPS tracking active • Distance: {totalDistance.toFixed(1)}m</p>
-              )}
-            </div>
 
-            <Button
-              onClick={() => {
-                playSwordClash()
-                resetSteps()
-                setTotalDistance(0)
-              }}
-              variant="destructive"
-              size="sm"
-              className="w-full bg-red-600 hover:bg-red-700"
-            >
-              Reset Steps
-            </Button>
+              <Progress value={progressPercentage} className="h-3 bg-purple-200 [&>div]:bg-purple-500" />
 
-            {locationError && <p className="text-sm text-red-600 bg-red-50 p-2 rounded text-center">{locationError}</p>}
-          </CardContent>
-        </Card>
-
-        <Card className="bg-purple-100 border-purple-300 shadow-lg">
-          <CardHeader className="text-center">
-            <CardTitle className="flex items-center justify-center gap-2 text-purple-900">
-              <Calendar className="h-6 w-6 text-purple-600" />
-              Gym Check-in
-            </CardTitle>
-            <CardDescription className="text-purple-700">
-              Check in at nearby gyms • 1 ticket per check-in
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="text-center">
-              {checkedIn ? (
-                <div className="space-y-2">
-                  <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
-                  <Badge variant="default" className="bg-green-500 text-white">
-                    Checked in today!
+              <div className="text-center text-sm text-purple-700">
+                {progressPercentage >= 100 ? (
+                  <Badge variant="default" className="bg-purple-500 text-white">
+                    🎉 Goal Achieved!
                   </Badge>
-                  {lastCheckIn && <p className="text-sm text-purple-700">Last check-in: {lastCheckIn}</p>}
-                  {localStorage.getItem("lastGym") && (
-                    <p className="text-sm text-purple-600">at {localStorage.getItem("lastGym")}</p>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {!userLocation ? (
-                    <div className="space-y-4">
-                      <div className="h-12 w-12 border-2 border-dashed border-purple-400 rounded-full mx-auto flex items-center justify-center">
-                        <MapPin className="h-6 w-6 text-purple-600" />
-                      </div>
-                      <Button
-                        onClick={getGymLocation}
-                        disabled={locationLoading}
-                        className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
-                      >
-                        {locationLoading ? "Finding Location..." : "Find Nearby Gyms"}
-                      </Button>
-                    </div>
-                  ) : nearbyGyms.length > 0 ? (
-                    <div className="space-y-3">
-                      <p className="text-sm text-purple-700">Nearby gyms:</p>
-                      {nearbyGyms.slice(0, 3).map((gym) => (
-                        <div key={gym.id} className="flex items-center justify-between p-2 bg-purple-50 rounded-lg">
-                          <div className="text-left">
-                            <p className="font-medium text-purple-900 text-sm">{gym.name}</p>
-                            <p className="text-xs text-purple-600">{Math.round(gym.distance)}m away</p>
-                          </div>
-                          <Button
-                            onClick={() => handleCheckIn(gym)}
-                            disabled={checkingIn || gym.distance > 100}
-                            size="sm"
-                            className={`${gym.distance <= 100 ? "bg-green-500 hover:bg-green-600" : "bg-gray-400 cursor-not-allowed"} text-white`}
-                          >
-                            {gym.distance <= 100 ? "Check In" : "Too Far"}
-                          </Button>
-                        </div>
-                      ))}
-                      {nearbyGyms.some((gym) => gym.distance <= 100) && (
-                        <Button
-                          onClick={handleCheckIn}
-                          disabled={checkingIn}
-                          className="w-full bg-purple-500 hover:bg-purple-600 text-white"
-                        >
-                          {checkingIn ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Checking In...
-                            </>
-                          ) : (
-                            "Quick Check-in at Closest Gym"
-                          )}
-                        </Button>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <p className="text-sm text-purple-700">No gyms found nearby</p>
-                      <Button
-                        onClick={getGymLocation}
-                        variant="outline"
-                        size="sm"
-                        className="border-purple-400 text-purple-700 bg-transparent"
-                      >
-                        Refresh Location
-                      </Button>
-                    </div>
-                  )}
-
-                  {locationError && <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{locationError}</p>}
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-purple-100 border-purple-300 shadow-lg">
-          <CardHeader className="text-center">
-            <CardTitle className="flex items-center justify-center gap-2 text-purple-900">
-              <svg className="h-6 w-6 text-purple-600" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-              </svg>
-              Heraklion Army NFT
-            </CardTitle>
-            <CardDescription className="text-purple-700">Mint exclusive NFTs on Magic Eden</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="text-center space-y-3">
-              <div className="relative">
-                <img
-                  src="/images/heraklion-membership-pass.jpg"
-                  alt="Heraklion Gym Membership Pass NFT"
-                  className="w-full max-w-md mx-auto rounded-lg shadow-lg hover:shadow-xl transition-shadow cursor-pointer"
-                  onClick={playSwordClash}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-lg pointer-events-none" />
-              </div>
-
-              <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-4 rounded-lg text-white">
-                <h3 className="font-bold text-lg mb-2">Heraklion Army Collection</h3>
-                <p className="text-sm opacity-90 mb-3">Exclusive NFT collection for GYMONAD warriors</p>
-                <div className="text-xs font-mono bg-black/20 p-2 rounded break-all">
-                  0xb240c821dd61f4a3ee572591536512111e6ffe45
-                </div>
-              </div>
-
-              <a
-                href="https://magiceden.io/collections/ethereum/0xb240c821dd61f4a3ee572591536512111e6ffe45"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-6 py-4 rounded-lg transition-all font-bold text-lg shadow-lg hover:shadow-xl"
-                onClick={playSwordClash}
-              >
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                </svg>
-                MINT ON MAGIC EDEN
-                <ExternalLink className="w-5 h-5" />
-              </a>
-
-              {connectedWallet && (
-                <div className="bg-purple-50 p-3 rounded-lg">
-                  <p className="text-sm text-purple-700 mb-1">Connected: {connectedWallet}</p>
-                  <p className="text-xs font-mono text-purple-600">
-                    {walletAddress?.slice(0, 8)}...{walletAddress?.slice(-6)}
-                  </p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-yellow-100 to-amber-100 border-yellow-400 shadow-lg">
-          <CardHeader className="text-center">
-            <CardTitle className="flex items-center justify-center gap-2 text-amber-900">
-              <span className="text-2xl">🎰</span>
-              Weekly MONAD Lottery
-            </CardTitle>
-            <CardDescription className="text-amber-700">5 MONAD testnet tokens • Every Sunday 8 PM UTC</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 text-center">
-              <div className="bg-yellow-200 rounded-lg p-3">
-                <div className="text-2xl font-bold text-amber-900">{lotteryEntries}</div>
-                <div className="text-sm text-amber-700">Your Entries</div>
-              </div>
-              <div className="bg-yellow-200 rounded-lg p-3">
-                <div className="text-lg font-bold text-amber-900">{getTimeUntilDraw()}</div>
-                <div className="text-sm text-amber-700">Next Draw</div>
-              </div>
-            </div>
-
-            {lastWinner && (
-              <div className="bg-gradient-to-r from-yellow-300 to-amber-300 rounded-lg p-3 text-center">
-                <div className="text-sm text-amber-800 font-semibold">🏆 Last Winner</div>
-                <div className="font-mono text-amber-900 text-sm">
-                  {lastWinner.slice(0, 8)}...{lastWinner.slice(-6)}
-                </div>
-              </div>
-            )}
-
-            <div className="text-center text-sm text-amber-700">
-              <p>Earn entries: 1 per gym check-in • 1 per 2,000 steps</p>
-              <p className="text-xs mt-1">Tokens sent manually by admin after draw</p>
-            </div>
-
-            {/* Admin draw button - hidden in production */}
-            {process.env.NODE_ENV === "development" && (
-              <Button
-                onClick={drawLottery}
-                className="w-full bg-amber-500 hover:bg-amber-600 text-white"
-                disabled={lotteryEntries === 0 || !connectedWallet}
-              >
-                🎲 Draw Lottery (Admin)
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="bg-purple-100 border-purple-300 shadow-lg">
-          <CardHeader className="text-center">
-            <CardTitle className="flex items-center justify-center gap-2 text-purple-900">
-              <Wallet className="h-6 w-6 text-purple-600" />
-              Web3 Wallet
-            </CardTitle>
-            <CardDescription className="text-purple-700">Connect your crypto wallet</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {connectedWallet ? (
-              <div className="space-y-3">
-                <div className="text-center">
-                  <Badge variant="default" className="bg-green-500 text-white mb-2">
-                    {connectedWallet} Connected
-                  </Badge>
-                  <p className="text-sm text-purple-700 font-mono break-all bg-purple-50 p-2 rounded">
-                    {walletAddress?.slice(0, 6)}...{walletAddress?.slice(-4)}
-                  </p>
-                </div>
-                <Button
-                  onClick={disconnectWallet}
-                  variant="outline"
-                  className="w-full border-purple-400 text-purple-700 hover:bg-purple-100 bg-transparent"
-                >
-                  Disconnect Wallet
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {!showWalletOptions ? (
-                  <Button
-                    onClick={() => {
-                      playSwordClash()
-                      setShowWalletOptions(true)
-                    }}
-                    className="w-full bg-purple-500 hover:bg-purple-600 text-white"
-                  >
-                    <Wallet className="h-4 w-4 mr-2" />
-                    Connect Wallet
-                  </Button>
                 ) : (
+                  `${Math.round(progressPercentage)}% complete`
+                )}
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-amber-800 font-medium">Auto Step Tracking</span>
+                  <button
+                    onClick={() => {
+                      if (autoStepTracking) {
+                        stopLocationTracking()
+                      } else {
+                        startLocationTracking()
+                      }
+                    }}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      autoStepTracking ? "bg-amber-500 text-white" : "bg-amber-100 text-amber-800 hover:bg-amber-200"
+                    }`}
+                  >
+                    {autoStepTracking ? "Stop GPS Tracking" : "Start GPS Tracking"}
+                  </button>
+                </div>
+                {autoStepTracking && stepLocation && (
+                  <p className="text-sm text-amber-700">
+                    📍 GPS tracking active • Distance: {totalDistance.toFixed(1)}m
+                  </p>
+                )}
+              </div>
+
+              <Button
+                onClick={() => {
+                  playSwordClash()
+                  resetSteps()
+                  setTotalDistance(0)
+                }}
+                variant="destructive"
+                size="sm"
+                className="w-full bg-red-600 hover:bg-red-700"
+              >
+                Reset Steps
+              </Button>
+
+              {locationError && (
+                <p className="text-sm text-red-600 bg-red-50 p-2 rounded text-center">{locationError}</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="bg-purple-100 border-purple-300 shadow-lg">
+            <CardHeader className="text-center">
+              <CardTitle className="flex items-center justify-center gap-2 text-purple-900">
+                <Calendar className="h-6 w-6 text-purple-600" />
+                Gym Check-in
+              </CardTitle>
+              <CardDescription className="text-purple-700">
+                Check in at nearby gyms • 1 ticket per check-in
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-center">
+                {checkedIn ? (
                   <div className="space-y-2">
-                    {walletAdapters.map((adapter) => (
-                      <Button
-                        key={adapter.name}
-                        onClick={() => connectWallet(adapter)}
-                        disabled={walletConnecting}
-                        variant="outline"
-                        className={`w-full justify-start border-purple-400 text-purple-700 hover:bg-purple-100 ${
-                          !adapter.isInstalled() ? "opacity-50" : ""
-                        }`}
-                      >
-                        {walletConnecting ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <span className="mr-2">{adapter.icon}</span>
+                    <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
+                    <Badge variant="default" className="bg-green-500 text-white">
+                      Checked in today!
+                    </Badge>
+                    {lastCheckIn && <p className="text-sm text-purple-700">Last check-in: {lastCheckIn}</p>}
+                    {localStorage.getItem("lastGym") && (
+                      <p className="text-sm text-purple-600">at {localStorage.getItem("lastGym")}</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {!userLocation ? (
+                      <div className="space-y-4">
+                        <div className="h-12 w-12 border-2 border-dashed border-purple-400 rounded-full mx-auto flex items-center justify-center">
+                          <MapPin className="h-6 w-6 text-purple-600" />
+                        </div>
+                        <Button
+                          onClick={getGymLocation}
+                          disabled={locationLoading}
+                          className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
+                        >
+                          {locationLoading ? "Finding Location..." : "Find Nearby Gyms"}
+                        </Button>
+                      </div>
+                    ) : nearbyGyms.length > 0 ? (
+                      <div className="space-y-3">
+                        <p className="text-sm text-purple-700">Nearby gyms:</p>
+                        {nearbyGyms.slice(0, 3).map((gym) => (
+                          <div key={gym.id} className="flex items-center justify-between p-2 bg-purple-50 rounded-lg">
+                            <div className="text-left">
+                              <p className="font-medium text-purple-900 text-sm">{gym.name}</p>
+                              <p className="text-xs text-purple-600">{Math.round(gym.distance)}m away</p>
+                            </div>
+                            <Button
+                              onClick={() => handleCheckIn(gym)}
+                              disabled={checkingIn || gym.distance > 100}
+                              size="sm"
+                              className={`${gym.distance <= 100 ? "bg-green-500 hover:bg-green-600" : "bg-gray-400 cursor-not-allowed"} text-white`}
+                            >
+                              {gym.distance <= 100 ? "Check In" : "Too Far"}
+                            </Button>
+                          </div>
+                        ))}
+                        {nearbyGyms.some((gym) => gym.distance <= 100) && (
+                          <Button
+                            onClick={handleCheckIn}
+                            disabled={checkingIn}
+                            className="w-full bg-purple-500 hover:bg-purple-600 text-white"
+                          >
+                            {checkingIn ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Checking In...
+                              </>
+                            ) : (
+                              "Quick Check-in at Closest Gym"
+                            )}
+                          </Button>
                         )}
-                        {adapter.name}
-                        {!adapter.isInstalled() && <span className="ml-auto text-xs">(Install)</span>}
-                      </Button>
-                    ))}
-                    <Button
-                      onClick={() => setShowWalletOptions(false)}
-                      variant="ghost"
-                      size="sm"
-                      className="w-full text-purple-600"
-                    >
-                      Cancel
-                    </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <p className="text-sm text-purple-700">No gyms found nearby</p>
+                        <Button
+                          onClick={getGymLocation}
+                          variant="outline"
+                          size="sm"
+                          className="border-purple-400 text-purple-700 bg-transparent"
+                        >
+                          Refresh Location
+                        </Button>
+                      </div>
+                    )}
+
+                    {locationError && <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{locationError}</p>}
                   </div>
                 )}
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-purple-100 border-purple-300 shadow-lg">
+            <CardHeader className="text-center">
+              <CardTitle className="flex items-center justify-center gap-2 text-purple-900">
+                <svg className="h-6 w-6 text-purple-600" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                </svg>
+                Heraklion Army NFT
+              </CardTitle>
+              <CardDescription className="text-purple-700">Mint exclusive NFTs on Magic Eden</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-center space-y-3">
+                <div className="relative">
+                  <img
+                    src="/images/heraklion-membership-pass.jpg"
+                    alt="Heraklion Gym Membership Pass NFT"
+                    className="w-full max-w-md mx-auto rounded-lg shadow-lg hover:shadow-xl transition-shadow cursor-pointer"
+                    onClick={playSwordClash}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-lg pointer-events-none" />
+                </div>
+
+                <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-4 rounded-lg text-white">
+                  <h3 className="font-bold text-lg mb-2">Heraklion Army Collection</h3>
+                  <p className="text-sm opacity-90 mb-3">Exclusive NFT collection for GYMONAD warriors</p>
+                  <div className="text-xs font-mono bg-black/20 p-2 rounded break-all">
+                    0xb240c821dd61f4a3ee572591536512111e6ffe45
+                  </div>
+                </div>
+
+                <a
+                  href="https://magiceden.io/collections/ethereum/0xb240c821dd61f4a3ee572591536512111e6ffe45"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-6 py-4 rounded-lg transition-all font-bold text-lg shadow-lg hover:shadow-xl"
+                  onClick={playSwordClash}
+                >
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                  </svg>
+                  MINT ON MAGIC EDEN
+                  <ExternalLink className="w-5 h-5" />
+                </a>
+
+                {connectedWallet && (
+                  <div className="bg-purple-50 p-3 rounded-lg">
+                    <p className="text-sm text-purple-700 mb-1">Connected: {connectedWallet}</p>
+                    <p className="text-xs font-mono text-purple-600">
+                      {walletAddress?.slice(0, 8)}...{walletAddress?.slice(-6)}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-yellow-100 to-amber-100 border-yellow-400 shadow-lg">
+            <CardHeader className="text-center">
+              <CardTitle className="flex items-center justify-center gap-2 text-amber-900">
+                <span className="text-2xl">🎰</span>
+                Weekly MONAD Lottery
+              </CardTitle>
+              <CardDescription className="text-amber-700">
+                5 MONAD testnet tokens • Every Sunday 8 PM UTC
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 text-center">
+                <div className="bg-yellow-200 rounded-lg p-3">
+                  <div className="text-2xl font-bold text-amber-900">{lotteryEntries}</div>
+                  <div className="text-sm text-amber-700">Your Entries</div>
+                </div>
+                <div className="bg-yellow-200 rounded-lg p-3">
+                  <div className="text-lg font-bold text-amber-900">{getTimeUntilDraw()}</div>
+                  <div className="text-sm text-amber-700">Next Draw</div>
+                </div>
+              </div>
+
+              {lastWinner && (
+                <div className="bg-gradient-to-r from-yellow-300 to-amber-300 rounded-lg p-3 text-center">
+                  <div className="text-sm text-amber-800 font-semibold">🏆 Last Winner</div>
+                  <div className="font-mono text-amber-900 text-sm">
+                    {lastWinner.slice(0, 8)}...{lastWinner.slice(-6)}
+                  </div>
+                </div>
+              )}
+
+              <div className="text-center text-sm text-amber-700">
+                <p>Earn entries: 1 per gym check-in • 1 per 2,000 steps</p>
+                <p className="text-xs mt-1">Tokens sent manually by admin after draw</p>
+              </div>
+
+              {/* Admin draw button - hidden in production */}
+              {process.env.NODE_ENV === "development" && (
+                <Button
+                  onClick={drawLottery}
+                  className="w-full bg-amber-500 hover:bg-amber-600 text-white"
+                  disabled={lotteryEntries === 0 || !connectedWallet}
+                >
+                  🎲 Draw Lottery (Admin)
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="bg-purple-100 border-purple-300 shadow-lg">
+            <CardHeader className="text-center">
+              <CardTitle className="flex items-center justify-center gap-2 text-purple-900">
+                <Wallet className="h-6 w-6 text-purple-600" />
+                Web3 Wallet
+              </CardTitle>
+              <CardDescription className="text-purple-700">Connect your crypto wallet</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {connectedWallet ? (
+                <div className="space-y-3">
+                  <div className="text-center">
+                    <Badge variant="default" className="bg-green-500 text-white mb-2">
+                      {connectedWallet} Connected
+                    </Badge>
+                    <p className="text-sm text-purple-700 font-mono break-all bg-purple-50 p-2 rounded">
+                      {walletAddress?.slice(0, 6)}...{walletAddress?.slice(-4)}
+                    </p>
+                  </div>
+                  <Button
+                    onClick={disconnectWallet}
+                    variant="outline"
+                    className="w-full border-purple-400 text-purple-700 hover:bg-purple-100 bg-transparent"
+                  >
+                    Disconnect Wallet
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {!showWalletOptions ? (
+                    <Button
+                      onClick={() => {
+                        playSwordClash()
+                        setShowWalletOptions(true)
+                      }}
+                      className="w-full bg-purple-500 hover:bg-purple-600 text-white"
+                    >
+                      <Wallet className="h-4 w-4 mr-2" />
+                      Connect Wallet
+                    </Button>
+                  ) : (
+                    <div className="space-y-2">
+                      {walletAdapters.map((adapter) => (
+                        <Button
+                          key={adapter.name}
+                          onClick={() => connectWallet(adapter)}
+                          disabled={walletConnecting}
+                          variant="outline"
+                          className={`w-full justify-start border-purple-400 text-purple-700 hover:bg-purple-100 ${
+                            !adapter.isInstalled() ? "opacity-50" : ""
+                          }`}
+                        >
+                          {walletConnecting ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <span className="mr-2">{adapter.icon}</span>
+                          )}
+                          {adapter.name}
+                          {!adapter.isInstalled() && <span className="ml-auto text-xs">(Install)</span>}
+                        </Button>
+                      ))}
+                      <Button
+                        onClick={() => setShowWalletOptions(false)}
+                        variant="ghost"
+                        size="sm"
+                        className="w-full text-purple-600"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <style jsx>{`
+          @keyframes skullGlow {
+            0% { 
+              filter: brightness(1.3) contrast(1.2) drop-shadow(0 0 15px #a855f7) drop-shadow(0 0 30px #7c3aed);
+            }
+            100% { 
+              filter: brightness(1.6) contrast(1.4) drop-shadow(0 0 25px #a855f7) drop-shadow(0 0 50px #7c3aed) drop-shadow(0 0 75px #8b5cf6);
+            }
+          }
+          
+          @keyframes float {
+            0%, 100% { transform: translateY(0px) translateX(0px); }
+            25% { transform: translateY(-20px) translateX(10px); }
+            50% { transform: translateY(-10px) translateX(-5px); }
+            75% { transform: translateY(-30px) translateX(15px); }
+          }
+          
+          @keyframes fade {
+            0% { opacity: 0.1; }
+            100% { opacity: 0.4; }
+          }
+        `}</style>
       </div>
     </div>
   )
