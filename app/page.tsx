@@ -5,13 +5,13 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
-import { CheckCircle, Footprints, Calendar, ExternalLink, MapPin, Loader2, Wallet, Download } from "lucide-react"
-import Image from "next/image"
-import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase/client"
+import { CheckCircle, Calendar, ExternalLink, MapPin, Loader2, Wallet, Download, Activity } from "lucide-react"
+import { isSupabaseConfigured } from "@/lib/supabase/client"
 import { getCurrentLocation, calculateDistance, type Location, type Gym } from "@/lib/location"
 import { walletAdapters, type WalletAdapter } from "@/lib/wallet"
+import { createClient } from "@/lib/supabase/client"
 
-export default function FitnessApp() {
+export default function GymonadFitness() {
   const [steps, setSteps] = useState(0)
   const [dailyGoal] = useState(10000)
   const [checkedIn, setCheckedIn] = useState(false)
@@ -21,7 +21,8 @@ export default function FitnessApp() {
   const [achievedMilestones, setAchievedMilestones] = useState<Set<string>>(new Set())
 
   const [nearbyGyms, setNearbyGyms] = useState<Gym[]>([])
-  const [userLocation, setUserLocation] = useState<Location | null>(null)
+  const [userLocation, setUserLocation] = useState<Location | null>(null) // For gym check-in
+  const [stepLocation, setStepLocation] = useState<Location | null>(null) // For step tracking
   const [locationLoading, setLocationLoading] = useState(false)
   const [locationError, setLocationError] = useState<string | null>(null)
   const [checkingIn, setCheckingIn] = useState(false)
@@ -34,8 +35,23 @@ export default function FitnessApp() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   const [showInstallPrompt, setShowInstallPrompt] = useState(false)
 
+  const [autoStepTracking, setAutoStepTracking] = useState(false)
+  const [lastPosition, setLastPosition] = useState<Location | null>(null)
+  const [totalDistance, setTotalDistance] = useState(0)
+  const [watchId, setWatchId] = useState<number | null>(null)
+
+  const [isLoading, setIsLoading] = useState(true)
+
+  const [tickets, setTickets] = useState(0)
+  const [lastTicketSteps, setLastTicketSteps] = useState(0)
+
+  const [lotteryEntries, setLotteryEntries] = useState(0)
+  const [lastWinner, setLastWinner] = useState<string | null>(null)
+  const [nextDrawDate, setNextDrawDate] = useState<Date | null>(null)
+  const [lotteryHistory, setLotteryHistory] = useState<Array<{ winner: string; date: string; tickets: number }>>([])
+
   const playSwordClash = () => {
-    const audio = new Audio("https://hebbkx1anhila5yf.public.blob.vercel-storage.com/swordsclashingmp3-ZkXZPLOZb8nG04XUrskCSFL4CSeqG7.mp3")
+    const audio = new Audio("https://hebbkx1anhila5yf.public.blob.vercel-storage.com/swordsclashing1sec-Gu3scJA0wJCm9za9kdnHLXcJdMvdkp.mp3")
     audio.volume = 0.5
     audio.play().catch(() => {}) // Ignore errors if audio fails
   }
@@ -102,6 +118,41 @@ export default function FitnessApp() {
         }
       }
     })
+
+    checkStepTickets(newSteps)
+  }
+
+  const checkStepTickets = (newSteps: number) => {
+    const ticketsEarned = Math.floor(newSteps / 2000)
+    const lastTicketsEarned = Math.floor(lastTicketSteps / 2000)
+
+    if (ticketsEarned > lastTicketsEarned) {
+      const newTicketsToAward = ticketsEarned - lastTicketsEarned
+      for (let i = 0; i < newTicketsToAward; i++) {
+        awardTicket("2,000 steps milestone")
+      }
+    }
+
+    setLastTicketSteps(newSteps)
+    localStorage.setItem("lastTicketSteps", newSteps.toString())
+  }
+
+  const awardTicket = (reason: string) => {
+    setTickets((prev) => {
+      const newTickets = prev + 1
+      localStorage.setItem("tickets", newTickets.toString())
+      console.log(`[v0] Ticket awarded for: ${reason}. Total tickets: ${newTickets}`)
+      return newTickets
+    })
+
+    // Add to lottery entries
+    setLotteryEntries((prev) => {
+      const newEntries = prev + 1
+      localStorage.setItem("lotteryEntries", newEntries.toString())
+      return newEntries
+    })
+
+    playGuitarMilestone() // Play reward sound
   }
 
   useEffect(() => {
@@ -132,6 +183,38 @@ export default function FitnessApp() {
         setCheckedIn(savedCheckedIn === "true")
       }
     }
+
+    const savedTickets = localStorage.getItem("tickets")
+    const savedLastTicketSteps = localStorage.getItem("lastTicketSteps")
+    if (savedTickets) setTickets(Number.parseInt(savedTickets))
+    if (savedLastTicketSteps) setLastTicketSteps(Number.parseInt(savedLastTicketSteps))
+
+    const savedLotteryEntries = localStorage.getItem("lotteryEntries")
+    if (savedLotteryEntries) {
+      setLotteryEntries(Number.parseInt(savedLotteryEntries))
+    }
+
+    const savedLastWinner = localStorage.getItem("lastWinner")
+    if (savedLastWinner) {
+      setLastWinner(savedLastWinner)
+    }
+
+    const savedNextDrawDate = localStorage.getItem("nextDrawDate")
+    if (savedNextDrawDate) {
+      setNextDrawDate(new Date(savedNextDrawDate))
+    } else {
+      // Set next draw date to next Sunday at 8 PM UTC
+      const nextSunday = getNextSunday()
+      setNextDrawDate(nextSunday)
+      localStorage.setItem("nextDrawDate", nextSunday.toISOString())
+    }
+
+    const savedLotteryHistory = localStorage.getItem("lotteryHistory")
+    if (savedLotteryHistory) {
+      setLotteryHistory(JSON.parse(savedLotteryHistory))
+    }
+
+    setTimeout(() => setIsLoading(false), 2000)
   }, [])
 
   useEffect(() => {
@@ -142,23 +225,23 @@ export default function FitnessApp() {
         backgroundMusic = new Audio("https://hebbkx1anhila5yf.public.blob.vercel-storage.com/gymonadtheme-Fuh0xpQtOA63uufs61fIneHPY136tL.mp3")
         backgroundMusic.loop = true
         backgroundMusic.volume = 0.4
-        backgroundMusic.play().catch(() => {}) // Ignore errors if audio fails
+        backgroundMusic.play().catch(() => {
+          const handleFirstInteraction = () => {
+            backgroundMusic?.play().catch(() => {})
+            setMusicStarted(true)
+            document.removeEventListener("click", handleFirstInteraction)
+            document.removeEventListener("keydown", handleFirstInteraction)
+          }
+          document.addEventListener("click", handleFirstInteraction)
+          document.addEventListener("keydown", handleFirstInteraction)
+        })
         setMusicStarted(true)
       }
     }
 
-    const handleFirstInteraction = () => {
-      startBackgroundMusic()
-      document.removeEventListener("click", handleFirstInteraction)
-      document.removeEventListener("keydown", handleFirstInteraction)
-    }
-
-    document.addEventListener("click", handleFirstInteraction)
-    document.addEventListener("keydown", handleFirstInteraction)
+    startBackgroundMusic()
 
     return () => {
-      document.removeEventListener("click", handleFirstInteraction)
-      document.removeEventListener("keydown", handleFirstInteraction)
       if (backgroundMusic) {
         backgroundMusic.pause()
         backgroundMusic = null
@@ -246,10 +329,17 @@ export default function FitnessApp() {
     if (!isSupabaseConfigured) return
 
     try {
-      const supabase = getSupabaseClient()
+      const supabase = createClient()
       const { data: gyms, error } = await supabase.from("gyms").select("*").order("name")
 
-      if (error) throw error
+      if (error) {
+        if (error.message.includes("table") && error.message.includes("does not exist")) {
+          console.log("[v0] Gyms table not found - database setup required")
+          setLocationError("Database setup required. Please run the gym table creation script.")
+          return
+        }
+        throw error
+      }
 
       const gymsWithDistance = gyms
         .map((gym) => ({
@@ -265,11 +355,11 @@ export default function FitnessApp() {
       setNearbyGyms(gymsWithDistance)
     } catch (error) {
       console.error("Error fetching gyms:", error)
-      setLocationError("Failed to load nearby gyms")
+      setLocationError("Failed to load nearby gyms. Using local mode.")
     }
   }
 
-  const getUserLocation = async () => {
+  const getGymLocation = async () => {
     setLocationLoading(true)
     setLocationError(null)
 
@@ -278,8 +368,8 @@ export default function FitnessApp() {
       setUserLocation(location)
       await fetchNearbyGyms(location)
     } catch (error) {
-      console.error("Location error:", error)
-      setLocationError("Unable to access location. Please enable location services.")
+      console.error("Gym location error:", error)
+      setLocationError("Unable to access location for gym check-in. Please enable location services.")
     } finally {
       setLocationLoading(false)
     }
@@ -289,7 +379,7 @@ export default function FitnessApp() {
     playSwordClash()
 
     if (!userLocation) {
-      await getUserLocation()
+      await getGymLocation()
       return
     }
 
@@ -306,16 +396,26 @@ export default function FitnessApp() {
       }
 
       if (selectedGym && isSupabaseConfigured) {
-        const supabase = getSupabaseClient()
-        const { error } = await supabase.from("checkins").insert({
-          gym_id: selectedGym.id,
-          user_latitude: userLocation.latitude,
-          user_longitude: userLocation.longitude,
-          distance_meters: Math.round(selectedGym.distance),
-          wallet_address: walletAddress,
-        })
+        try {
+          const supabase = createClient()
+          const { error } = await supabase.from("checkins").insert({
+            gym_id: selectedGym.id,
+            user_latitude: userLocation.latitude,
+            user_longitude: userLocation.longitude,
+            distance_meters: Math.round(selectedGym.distance),
+            wallet_address: walletAddress,
+          })
 
-        if (error) throw error
+          if (error) {
+            if (error.message.includes("table") && error.message.includes("does not exist")) {
+              console.log("[v0] Checkins table not found - using local storage only")
+            } else {
+              throw error
+            }
+          }
+        } catch (error) {
+          console.error("Error saving check-in to database:", error)
+        }
       }
 
       const today = new Date().toDateString()
@@ -327,6 +427,7 @@ export default function FitnessApp() {
         localStorage.setItem("lastGym", selectedGym.name)
       }
 
+      awardTicket("gym check-in")
       playGuitarMilestone()
     } catch (error) {
       console.error("Check-in error:", error)
@@ -343,57 +444,354 @@ export default function FitnessApp() {
     localStorage.removeItem("achievedMilestones")
   }
 
+  const startLocationTracking = async () => {
+    if (!navigator.geolocation) {
+      setLocationError("Geolocation is not supported by this browser")
+      return
+    }
+
+    setLocationLoading(true)
+    setLocationError(null)
+
+    try {
+      const initialLocation = await new Promise<Location>((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+          reject(new Error("Location request timed out. Please ensure GPS is enabled and try again."))
+        }, 15000) // Increased timeout to 15 seconds
+
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            clearTimeout(timeoutId)
+            resolve({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            })
+          },
+          (error) => {
+            clearTimeout(timeoutId)
+            let errorMessage = "Location access failed"
+            switch (error.code) {
+              case error.PERMISSION_DENIED:
+                errorMessage = "Location permission denied. Please enable location access in your browser."
+                break
+              case error.POSITION_UNAVAILABLE:
+                errorMessage = "Location information unavailable. Please check your GPS settings."
+                break
+              case error.TIMEOUT:
+                errorMessage = "Location request timed out. Please try again."
+                break
+              default:
+                errorMessage = `Location error: ${error.message}`
+            }
+            reject(new Error(errorMessage))
+          },
+          {
+            enableHighAccuracy: false, // Use less accurate but faster location
+            timeout: 12000, // 12 second timeout for initial request
+            maximumAge: 10000, // Accept cached location up to 10 seconds old
+          },
+        )
+      })
+
+      setStepLocation(initialLocation)
+      setLastPosition(initialLocation)
+
+      const id = navigator.geolocation.watchPosition(
+        (position) => {
+          const newLocation: Location = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          }
+
+          if (lastPosition) {
+            const distance = calculateDistance(lastPosition, newLocation)
+
+            if (distance >= 0.5 && distance <= 100) {
+              setTotalDistance((prev) => {
+                const newTotal = prev + distance
+
+                const newSteps = Math.floor(newTotal * 1.3)
+                const currentSteps = Math.floor(prev * 1.3)
+                const stepIncrease = newSteps - currentSteps
+
+                if (stepIncrease > 0) {
+                  setSteps((prevSteps) => {
+                    const updatedSteps = prevSteps + stepIncrease
+                    checkStepMilestones(updatedSteps, prevSteps)
+                    return updatedSteps
+                  })
+                }
+
+                return newTotal
+              })
+            }
+          }
+
+          setStepLocation(newLocation)
+          setLastPosition(newLocation)
+        },
+        (error) => {
+          console.error("Step tracking location error:", error)
+          console.log("[v0] Location tracking error, continuing:", error.message)
+        },
+        {
+          enableHighAccuracy: false, // Use less accurate but more reliable location
+          timeout: 20000, // Increased timeout to 20 seconds
+          maximumAge: 15000, // Accept older cached positions
+        },
+      )
+
+      setWatchId(id)
+      setAutoStepTracking(true)
+      setLocationError(null) // Clear any previous errors on success
+    } catch (error) {
+      console.error("Step location error:", error)
+      setLocationError(
+        error.message || "Unable to access location for step tracking. Please enable location services and try again.",
+      )
+    } finally {
+      setLocationLoading(false)
+    }
+  }
+
+  const stopLocationTracking = () => {
+    if (watchId !== null) {
+      navigator.geolocation.clearWatch(watchId)
+      setWatchId(null)
+    }
+    setAutoStepTracking(false)
+    setLastPosition(null)
+  }
+
   const progressPercentage = Math.min((steps / dailyGoal) * 100, 100)
 
+  const getNextSunday = () => {
+    const now = new Date()
+    const nextSunday = new Date(now)
+    nextSunday.setUTCDate(now.getUTCDate() + (7 - now.getUTCDay()))
+    nextSunday.setUTCHours(20, 0, 0, 0) // 8 PM UTC
+    return nextSunday
+  }
+
+  const drawLottery = () => {
+    if (!connectedWallet || !walletAddress || lotteryEntries === 0) {
+      alert("Need connected wallet and lottery entries to draw!")
+      return
+    }
+
+    // Simple random selection (in real app, this would be more sophisticated)
+    const winner = walletAddress
+    const drawDate = new Date().toISOString().split("T")[0]
+
+    // Update lottery history
+    const newEntry = {
+      winner: winner,
+      date: drawDate,
+      tickets: lotteryEntries,
+    }
+
+    const updatedHistory = [newEntry, ...lotteryHistory.slice(0, 4)] // Keep last 5 winners
+    setLotteryHistory(updatedHistory)
+    localStorage.setItem("lotteryHistory", JSON.stringify(updatedHistory))
+
+    // Set as last winner
+    setLastWinner(winner)
+    localStorage.setItem("lastWinner", winner)
+
+    // Reset lottery entries and set next draw date
+    setLotteryEntries(0)
+    localStorage.setItem("lotteryEntries", "0")
+
+    const nextSunday = getNextSunday()
+    setNextDrawDate(nextSunday)
+    localStorage.setItem("nextDrawDate", nextSunday.toISOString())
+
+    playGuitarMilestone()
+    alert(`🎉 Lottery Winner: ${winner.slice(0, 6)}...${winner.slice(-4)}\n5 MONAD tokens will be sent manually!`)
+  }
+
+  const getTimeUntilDraw = () => {
+    if (!nextDrawDate) return "Loading..."
+
+    const now = new Date()
+    const diff = nextDrawDate.getTime() - now.getTime()
+
+    if (diff <= 0) return "Draw Ready!"
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+
+    return `${days}d ${hours}h`
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center relative overflow-hidden">
+        {/* Background smoke effects */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute inset-0">
+            <div
+              className="absolute top-10 left-10 w-64 h-64 rounded-full opacity-30 animate-pulse"
+              style={{
+                background:
+                  "radial-gradient(circle, rgba(147, 51, 234, 0.4) 0%, rgba(147, 51, 234, 0.1) 50%, transparent 100%)",
+                animation: "float 8s ease-in-out infinite, fade 6s ease-in-out infinite alternate",
+              }}
+            />
+            <div
+              className="absolute top-32 right-16 w-48 h-48 rounded-full opacity-25 animate-pulse"
+              style={{
+                background:
+                  "radial-gradient(circle, rgba(168, 85, 247, 0.5) 0%, rgba(168, 85, 247, 0.1) 50%, transparent 100%)",
+                animation: "float 10s ease-in-out infinite reverse, fade 8s ease-in-out infinite alternate-reverse",
+                animationDelay: "2s",
+              }}
+            />
+            <div
+              className="absolute bottom-20 left-1/4 w-72 h-72 rounded-full opacity-20"
+              style={{
+                background:
+                  "radial-gradient(circle, rgba(124, 58, 237, 0.6) 0%, rgba(124, 58, 237, 0.1) 50%, transparent 100%)",
+                animation: "float 12s ease-in-out infinite, fade 10s ease-in-out infinite alternate",
+                animationDelay: "4s",
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Loading content */}
+        <div className="relative z-10 text-center">
+          <div className="mb-6">
+            {/* Cropped header image to show only top 2/3 by cutting bottom third */}
+            <div className="w-full max-w-2xl mx-auto rounded-lg shadow-2xl overflow-hidden">
+              <img src="/images/gymonad-loading.jpg" alt="GYMONAD Loading" className="object-contain w-full h-full" />
+            </div>
+          </div>
+
+          {/* Spinning loading wheel */}
+          <div className="flex justify-center">
+            <div className="relative w-16 h-16">
+              <div className="absolute inset-0 animate-spin">
+                <div className="w-4 h-4 bg-yellow-500 rounded-full absolute top-0 left-1/2 transform -translate-x-1/2"></div>
+                <div className="w-4 h-4 bg-yellow-400 rounded-full absolute top-2 right-2"></div>
+                <div className="w-4 h-4 bg-yellow-300 rounded-full absolute right-0 top-1/2 transform -translate-y-1/2"></div>
+                <div className="w-4 h-4 bg-yellow-200 rounded-full absolute bottom-2 right-2"></div>
+                <div className="w-4 h-4 bg-yellow-100 rounded-full absolute bottom-0 left-1/2 transform -translate-x-1/2"></div>
+                <div className="w-4 h-4 bg-yellow-200 rounded-full absolute bottom-2 left-2"></div>
+                <div className="w-4 h-4 bg-yellow-300 rounded-full absolute left-0 top-1/2 transform -translate-y-1/2"></div>
+                <div className="w-4 h-4 bg-yellow-400 rounded-full absolute top-2 left-2"></div>
+              </div>
+            </div>
+          </div>
+
+          <p className="text-yellow-500 text-lg font-bold mt-4 animate-pulse">Loading GYMONAD...</p>
+        </div>
+
+        <style jsx>{`
+          @keyframes float {
+            0%, 100% { transform: translateY(0px) translateX(0px); }
+            25% { transform: translateY(-20px) translateX(10px); }
+            50% { transform: translateY(-10px) translateX(-5px); }
+            75% { transform: translateY(-30px) translateX(15px); }
+          }
+          
+          @keyframes fade {
+            0% { opacity: 0.1; }
+            100% { opacity: 0.4; }
+          }
+        `}</style>
+      </div>
+    )
+  }
+
   return (
-    <div className={`min-h-screen p-4 relative transition-all duration-200 ${isLightning ? "bg-white" : "bg-black"}`}>
-      <div className="fixed top-4 left-4 z-10 w-48 h-48 opacity-80">
-        <Image
+    <div className={`min-h-screen bg-black relative overflow-hidden ${isLightning ? "bg-white" : ""}`}>
+      <div className="fixed inset-0 pointer-events-none z-20">
+        {/* Right border skulls */}
+        <img
           src="/images/purple-skull.jpg"
           alt="Purple Skull"
-          fill
-          className="object-contain"
+          className="absolute right-2 top-1/4 w-24 h-24 opacity-90"
           style={{
-            filter: "brightness(1.5) contrast(1.2)",
-            mixBlendMode: "screen",
+            filter: "brightness(1.3) contrast(1.2) drop-shadow(0 0 15px #a855f7) drop-shadow(0 0 30px #7c3aed)",
+            animation: "skullGlow 3s ease-in-out infinite alternate",
           }}
         />
-      </div>
-      <div className="fixed top-4 right-4 z-10 w-48 h-48 opacity-80">
-        <Image
+        <img
           src="/images/purple-skull.jpg"
           alt="Purple Skull"
-          fill
-          className="object-contain"
+          className="absolute right-2 top-1/2 w-24 h-24 opacity-90"
           style={{
-            filter: "brightness(1.5) contrast(1.2)",
-            mixBlendMode: "screen",
+            filter: "brightness(1.3) contrast(1.2) drop-shadow(0 0 15px #a855f7) drop-shadow(0 0 30px #7c3aed)",
+            animation: "skullGlow 3s ease-in-out infinite alternate",
+            animationDelay: "1s",
           }}
         />
-      </div>
-      <div className="fixed bottom-4 left-4 z-10 w-48 h-48 opacity-80">
-        <Image
+        <img
           src="/images/purple-skull.jpg"
           alt="Purple Skull"
-          fill
-          className="object-contain"
+          className="absolute right-2 top-3/4 w-24 h-24 opacity-90"
           style={{
-            filter: "brightness(1.5) contrast(1.2)",
-            mixBlendMode: "screen",
+            filter: "brightness(1.3) contrast(1.2) drop-shadow(0 0 15px #a855f7) drop-shadow(0 0 30px #7c3aed)",
+            animation: "skullGlow 3s ease-in-out infinite alternate",
+            animationDelay: "2s",
           }}
         />
-      </div>
-      <div className="fixed bottom-4 right-4 z-10 w-48 h-48 opacity-80">
-        <Image
+
+        {/* Left border skulls */}
+        <img
           src="/images/purple-skull.jpg"
           alt="Purple Skull"
-          fill
-          className="object-contain"
+          className="absolute left-2 top-1/4 w-24 h-24 opacity-90"
           style={{
-            filter: "brightness(1.5) contrast(1.2)",
-            mixBlendMode: "screen",
+            filter: "brightness(1.3) contrast(1.2) drop-shadow(0 0 15px #a855f7) drop-shadow(0 0 30px #7c3aed)",
+            animation: "skullGlow 3s ease-in-out infinite alternate",
+            animationDelay: "0.5s",
           }}
         />
+        <img
+          src="/images/purple-skull.jpg"
+          alt="Purple Skull"
+          className="absolute left-2 top-1/2 w-24 h-24 opacity-90"
+          style={{
+            filter: "brightness(1.3) contrast(1.2) drop-shadow(0 0 15px #a855f7) drop-shadow(0 0 30px #7c3aed)",
+            animation: "skullGlow 3s ease-in-out infinite alternate",
+            animationDelay: "1.5s",
+          }}
+        />
+        <img
+          src="/images/purple-skull.jpg"
+          alt="Purple Skull"
+          className="absolute left-2 top-3/4 w-24 h-24 opacity-90"
+          style={{
+            filter: "brightness(1.3) contrast(1.2) drop-shadow(0 0 15px #a855f7) drop-shadow(0 0 30px #7c3aed)",
+            animation: "skullGlow 3s ease-in-out infinite alternate",
+            animationDelay: "2.5s",
+          }}
+        />
+
+        <style jsx>{`
+          @keyframes skullGlow {
+            0% { 
+              filter: brightness(1.3) contrast(1.2) drop-shadow(0 0 15px #a855f7) drop-shadow(0 0 30px #7c3aed);
+            }
+            100% { 
+              filter: brightness(1.6) contrast(1.4) drop-shadow(0 0 25px #a855f7) drop-shadow(0 0 50px #7c3aed) drop-shadow(0 0 75px #8b5cf6);
+            }
+          }
+          
+          @keyframes float {
+            0%, 100% { transform: translateY(0px) translateX(0px); }
+            25% { transform: translateY(-20px) translateX(10px); }
+            50% { transform: translateY(-10px) translateX(-5px); }
+            75% { transform: translateY(-30px) translateX(15px); }
+          }
+          
+          @keyframes fade {
+            0% { opacity: 0.1; }
+            100% { opacity: 0.4; }
+          }
+        `}</style>
       </div>
 
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -455,12 +853,6 @@ export default function FitnessApp() {
         </div>
       )}
 
-      {!musicStarted && (
-        <div className="fixed top-52 right-4 z-30 bg-purple-600 text-white px-3 py-1 rounded-full text-sm">
-          Click anywhere to start music
-        </div>
-      )}
-
       {showInstallPrompt && (
         <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-30 bg-purple-600 text-white px-4 py-2 rounded-lg shadow-lg">
           <div className="flex items-center gap-2">
@@ -486,58 +878,303 @@ export default function FitnessApp() {
         </div>
       )}
 
-      <div className="max-w-md mx-auto space-y-6 relative z-20">
-        <div className="text-center space-y-4">
-          <div className="relative w-full h-48 rounded-lg overflow-hidden shadow-lg">
-            <Image
-              src="/images/gymonad-header.jpg"
-              alt="Gymonad - Monad Fitness Characters"
-              fill
-              className="object-cover"
-              priority
-            />
-          </div>
-          <div className="space-y-2">
-            <h1
-              className="text-6xl font-serif font-bold text-yellow-500 tracking-wide"
-              style={{
-                WebkitTextStroke: "2px #fbbf24",
-                textShadow: "0 0 10px #fbbf24, 0 0 20px #f59e0b, 0 0 30px #d97706",
-              }}
-            >
-              GYMONAD
-            </h1>
-            <p className="text-purple-300">Track your steps and daily check-ins</p>
-            <div className="flex justify-center gap-4 mt-4">
-              <a
-                href="https://x.com/Gymonad"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
-                onClick={playSwordClash}
-              >
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                </svg>
-                X
-                <ExternalLink className="w-4 h-4" />
-              </a>
-              <a
-                href="https://t.me/+_CBKM3CDYM9lYmUx"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
-                onClick={playSwordClash}
-              >
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                </svg>
-                Telegram
-                <ExternalLink className="w-4 h-4" />
-              </a>
-            </div>
+      <div className="text-center mb-8">
+        <div className="mb-6">
+          {/* Cropped header image to show only top 2/3 by cutting bottom third */}
+          <div className="w-full max-w-2xl mx-auto rounded-lg shadow-2xl overflow-hidden">
+            <img src="/images/gymonad-header.jpg" alt="GYMONAD Team" className="w-full h-64 object-cover object-top" />
           </div>
         </div>
+
+        <h1
+          className="text-6xl font-bold mb-4 font-serif tracking-wider text-yellow-500"
+          style={{
+            WebkitTextStroke: "2px #fbbf24",
+            textShadow: "0 0 20px rgba(251, 191, 36, 0.8), 0 0 40px rgba(251, 191, 36, 0.6)",
+          }}
+        >
+          GYMONAD
+        </h1>
+        <p className="text-purple-300 text-lg mb-4">Track your fitness journey in the Monad ecosystem</p>
+
+        <div className="inline-flex items-center gap-2 bg-gradient-to-r from-yellow-500/20 to-amber-500/20 border border-yellow-500/30 rounded-lg px-4 py-2 mb-4">
+          <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center text-black font-bold text-sm">
+            T
+          </div>
+          <span className="text-yellow-400 font-bold text-lg">{tickets}</span>
+          <span className="text-yellow-300 text-sm">Tickets</span>
+        </div>
+      </div>
+
+      <div className="grid gap-6 max-w-md mx-auto px-4">
+        <Card className="bg-purple-100 border-purple-300 shadow-lg">
+          <CardHeader className="text-center">
+            <CardTitle className="flex items-center justify-center gap-2 text-purple-900">
+              <Activity className="h-6 w-6 text-purple-600" />
+              Step Counter
+            </CardTitle>
+            <CardDescription className="text-purple-700">
+              Daily step tracking • 1 ticket per 2,000 steps
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="text-center">
+              <div className="text-4xl font-bold text-purple-600">{steps.toLocaleString()}</div>
+              <div className="text-sm text-purple-700">of {dailyGoal.toLocaleString()} steps</div>
+              {autoStepTracking && (
+                <div className="text-xs text-purple-600 mt-1">Distance: {totalDistance.toFixed(0)}m tracked</div>
+              )}
+            </div>
+
+            <Progress value={progressPercentage} className="h-3 bg-purple-200 [&>div]:bg-purple-500" />
+
+            <div className="text-center text-sm text-purple-700">
+              {progressPercentage >= 100 ? (
+                <Badge variant="default" className="bg-purple-500 text-white">
+                  🎉 Goal Achieved!
+                </Badge>
+              ) : (
+                `${Math.round(progressPercentage)}% complete`
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-amber-800 font-medium">Auto Step Tracking</span>
+                <button
+                  onClick={() => {
+                    if (autoStepTracking) {
+                      stopLocationTracking()
+                    } else {
+                      startLocationTracking()
+                    }
+                  }}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    autoStepTracking ? "bg-amber-500 text-white" : "bg-amber-100 text-amber-800 hover:bg-amber-200"
+                  }`}
+                >
+                  {autoStepTracking ? "Stop GPS Tracking" : "Start GPS Tracking"}
+                </button>
+              </div>
+              {autoStepTracking && stepLocation && (
+                <p className="text-sm text-amber-700">📍 GPS tracking active • Distance: {totalDistance.toFixed(1)}m</p>
+              )}
+            </div>
+
+            <Button
+              onClick={() => {
+                playSwordClash()
+                resetSteps()
+                setTotalDistance(0)
+              }}
+              variant="destructive"
+              size="sm"
+              className="w-full bg-red-600 hover:bg-red-700"
+            >
+              Reset Steps
+            </Button>
+
+            {locationError && <p className="text-sm text-red-600 bg-red-50 p-2 rounded text-center">{locationError}</p>}
+          </CardContent>
+        </Card>
+
+        <Card className="bg-purple-100 border-purple-300 shadow-lg">
+          <CardHeader className="text-center">
+            <CardTitle className="flex items-center justify-center gap-2 text-purple-900">
+              <Calendar className="h-6 w-6 text-purple-600" />
+              Gym Check-in
+            </CardTitle>
+            <CardDescription className="text-purple-700">
+              Check in at nearby gyms • 1 ticket per check-in
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="text-center">
+              {checkedIn ? (
+                <div className="space-y-2">
+                  <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
+                  <Badge variant="default" className="bg-green-500 text-white">
+                    Checked in today!
+                  </Badge>
+                  {lastCheckIn && <p className="text-sm text-purple-700">Last check-in: {lastCheckIn}</p>}
+                  {localStorage.getItem("lastGym") && (
+                    <p className="text-sm text-purple-600">at {localStorage.getItem("lastGym")}</p>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {!userLocation ? (
+                    <div className="space-y-4">
+                      <div className="h-12 w-12 border-2 border-dashed border-purple-400 rounded-full mx-auto flex items-center justify-center">
+                        <MapPin className="h-6 w-6 text-purple-600" />
+                      </div>
+                      <Button
+                        onClick={getGymLocation}
+                        disabled={locationLoading}
+                        className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
+                      >
+                        {locationLoading ? "Finding Location..." : "Find Nearby Gyms"}
+                      </Button>
+                    </div>
+                  ) : nearbyGyms.length > 0 ? (
+                    <div className="space-y-3">
+                      <p className="text-sm text-purple-700">Nearby gyms:</p>
+                      {nearbyGyms.slice(0, 3).map((gym) => (
+                        <div key={gym.id} className="flex items-center justify-between p-2 bg-purple-50 rounded-lg">
+                          <div className="text-left">
+                            <p className="font-medium text-purple-900 text-sm">{gym.name}</p>
+                            <p className="text-xs text-purple-600">{Math.round(gym.distance)}m away</p>
+                          </div>
+                          <Button
+                            onClick={() => handleCheckIn(gym)}
+                            disabled={checkingIn || gym.distance > 100}
+                            size="sm"
+                            className={`${gym.distance <= 100 ? "bg-green-500 hover:bg-green-600" : "bg-gray-400 cursor-not-allowed"} text-white`}
+                          >
+                            {gym.distance <= 100 ? "Check In" : "Too Far"}
+                          </Button>
+                        </div>
+                      ))}
+                      {nearbyGyms.some((gym) => gym.distance <= 100) && (
+                        <Button
+                          onClick={handleCheckIn}
+                          disabled={checkingIn}
+                          className="w-full bg-purple-500 hover:bg-purple-600 text-white"
+                        >
+                          {checkingIn ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Checking In...
+                            </>
+                          ) : (
+                            "Quick Check-in at Closest Gym"
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-sm text-purple-700">No gyms found nearby</p>
+                      <Button
+                        onClick={getGymLocation}
+                        variant="outline"
+                        size="sm"
+                        className="border-purple-400 text-purple-700 bg-transparent"
+                      >
+                        Refresh Location
+                      </Button>
+                    </div>
+                  )}
+
+                  {locationError && <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{locationError}</p>}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-purple-100 border-purple-300 shadow-lg">
+          <CardHeader className="text-center">
+            <CardTitle className="flex items-center justify-center gap-2 text-purple-900">
+              <svg className="h-6 w-6 text-purple-600" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+              </svg>
+              Heraklion Army NFT
+            </CardTitle>
+            <CardDescription className="text-purple-700">Mint exclusive NFTs on Magic Eden</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="text-center space-y-3">
+              <div className="relative">
+                <img
+                  src="/images/heraklion-membership-pass.jpg"
+                  alt="Heraklion Gym Membership Pass NFT"
+                  className="w-full max-w-md mx-auto rounded-lg shadow-lg hover:shadow-xl transition-shadow cursor-pointer"
+                  onClick={playSwordClash}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-lg pointer-events-none" />
+              </div>
+
+              <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-4 rounded-lg text-white">
+                <h3 className="font-bold text-lg mb-2">Heraklion Army Collection</h3>
+                <p className="text-sm opacity-90 mb-3">Exclusive NFT collection for GYMONAD warriors</p>
+                <div className="text-xs font-mono bg-black/20 p-2 rounded break-all">
+                  0xb240c821dd61f4a3ee572591536512111e6ffe45
+                </div>
+              </div>
+
+              <a
+                href="https://magiceden.io/collections/ethereum/0xb240c821dd61f4a3ee572591536512111e6ffe45"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-6 py-4 rounded-lg transition-all font-bold text-lg shadow-lg hover:shadow-xl"
+                onClick={playSwordClash}
+              >
+                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                </svg>
+                MINT ON MAGIC EDEN
+                <ExternalLink className="w-5 h-5" />
+              </a>
+
+              {connectedWallet && (
+                <div className="bg-purple-50 p-3 rounded-lg">
+                  <p className="text-sm text-purple-700 mb-1">Connected: {connectedWallet}</p>
+                  <p className="text-xs font-mono text-purple-600">
+                    {walletAddress?.slice(0, 8)}...{walletAddress?.slice(-6)}
+                  </p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-yellow-100 to-amber-100 border-yellow-400 shadow-lg">
+          <CardHeader className="text-center">
+            <CardTitle className="flex items-center justify-center gap-2 text-amber-900">
+              <span className="text-2xl">🎰</span>
+              Weekly MONAD Lottery
+            </CardTitle>
+            <CardDescription className="text-amber-700">5 MONAD testnet tokens • Every Sunday 8 PM UTC</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4 text-center">
+              <div className="bg-yellow-200 rounded-lg p-3">
+                <div className="text-2xl font-bold text-amber-900">{lotteryEntries}</div>
+                <div className="text-sm text-amber-700">Your Entries</div>
+              </div>
+              <div className="bg-yellow-200 rounded-lg p-3">
+                <div className="text-lg font-bold text-amber-900">{getTimeUntilDraw()}</div>
+                <div className="text-sm text-amber-700">Next Draw</div>
+              </div>
+            </div>
+
+            {lastWinner && (
+              <div className="bg-gradient-to-r from-yellow-300 to-amber-300 rounded-lg p-3 text-center">
+                <div className="text-sm text-amber-800 font-semibold">🏆 Last Winner</div>
+                <div className="font-mono text-amber-900 text-sm">
+                  {lastWinner.slice(0, 8)}...{lastWinner.slice(-6)}
+                </div>
+              </div>
+            )}
+
+            <div className="text-center text-sm text-amber-700">
+              <p>Earn entries: 1 per gym check-in • 1 per 2,000 steps</p>
+              <p className="text-xs mt-1">Tokens sent manually by admin after draw</p>
+            </div>
+
+            {/* Admin draw button - hidden in production */}
+            {process.env.NODE_ENV === "development" && (
+              <Button
+                onClick={drawLottery}
+                className="w-full bg-amber-500 hover:bg-amber-600 text-white"
+                disabled={lotteryEntries === 0 || !connectedWallet}
+              >
+                🎲 Draw Lottery (Admin)
+              </Button>
+            )}
+          </CardContent>
+        </Card>
 
         <Card className="bg-purple-100 border-purple-300 shadow-lg">
           <CardHeader className="text-center">
@@ -614,283 +1251,7 @@ export default function FitnessApp() {
             )}
           </CardContent>
         </Card>
-
-        <Card className="bg-purple-100 border-purple-300 shadow-lg">
-          <CardHeader className="text-center">
-            <CardTitle className="flex items-center justify-center gap-2 text-purple-900">
-              <Footprints className="h-6 w-6 text-purple-600" />
-              Step Counter
-            </CardTitle>
-            <CardDescription className="text-purple-700">Daily step tracking</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="text-center">
-              <div className="text-4xl font-bold text-purple-600">{steps.toLocaleString()}</div>
-              <div className="text-sm text-purple-700">of {dailyGoal.toLocaleString()} steps</div>
-            </div>
-
-            <Progress value={progressPercentage} className="h-3 bg-purple-200 [&>div]:bg-purple-500" />
-
-            <div className="text-center text-sm text-purple-700">
-              {progressPercentage >= 100 ? (
-                <Badge variant="default" className="bg-purple-500 text-white">
-                  🎉 Goal Achieved!
-                </Badge>
-              ) : (
-                `${Math.round(progressPercentage)}% complete`
-              )}
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              <Button
-                onClick={() => {
-                  playSwordClash()
-                  addSteps(100)
-                }}
-                variant="outline"
-                size="sm"
-                className="border-purple-400 text-purple-700 hover:bg-purple-100"
-              >
-                +100
-              </Button>
-              <Button
-                onClick={() => {
-                  playSwordClash()
-                  addSteps(500)
-                }}
-                variant="outline"
-                size="sm"
-                className="border-purple-400 text-purple-700 hover:bg-purple-100"
-              >
-                +500
-              </Button>
-              <Button
-                onClick={() => {
-                  playSwordClash()
-                  addSteps(1000)
-                }}
-                variant="outline"
-                size="sm"
-                className="border-purple-400 text-purple-700 hover:bg-purple-100"
-              >
-                +1000
-              </Button>
-            </div>
-
-            <Button
-              onClick={() => {
-                playSwordClash()
-                resetSteps()
-              }}
-              variant="destructive"
-              size="sm"
-              className="w-full bg-red-600 hover:bg-red-700"
-            >
-              Reset Steps
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-purple-100 border-purple-300 shadow-lg">
-          <CardHeader className="text-center">
-            <CardTitle className="flex items-center justify-center gap-2 text-purple-900">
-              <Calendar className="h-6 w-6 text-purple-600" />
-              Gym Check-in
-            </CardTitle>
-            <CardDescription className="text-purple-700">Check in at nearby gyms</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="text-center">
-              {checkedIn ? (
-                <div className="space-y-2">
-                  <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
-                  <Badge variant="default" className="bg-green-500 text-white">
-                    Checked in today!
-                  </Badge>
-                  {lastCheckIn && <p className="text-sm text-purple-700">Last check-in: {lastCheckIn}</p>}
-                  {localStorage.getItem("lastGym") && (
-                    <p className="text-sm text-purple-600">at {localStorage.getItem("lastGym")}</p>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {!userLocation ? (
-                    <div className="space-y-4">
-                      <div className="h-12 w-12 border-2 border-dashed border-purple-400 rounded-full mx-auto flex items-center justify-center">
-                        <MapPin className="h-6 w-6 text-purple-600" />
-                      </div>
-                      <Button
-                        onClick={() => {
-                          playSwordClash()
-                          getUserLocation()
-                        }}
-                        disabled={locationLoading}
-                        className="w-full bg-purple-500 hover:bg-purple-600 text-white"
-                      >
-                        {locationLoading ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Getting Location...
-                          </>
-                        ) : (
-                          <>
-                            <MapPin className="h-4 w-4 mr-2" />
-                            Enable Location for Gym Check-in
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  ) : nearbyGyms.length > 0 ? (
-                    <div className="space-y-3">
-                      <p className="text-sm text-purple-700">Nearby gyms:</p>
-                      {nearbyGyms.slice(0, 3).map((gym) => (
-                        <div key={gym.id} className="flex items-center justify-between p-2 bg-purple-50 rounded-lg">
-                          <div className="text-left">
-                            <p className="font-medium text-purple-900 text-sm">{gym.name}</p>
-                            <p className="text-xs text-purple-600">{Math.round(gym.distance)}m away</p>
-                          </div>
-                          <Button
-                            onClick={() => handleCheckIn(gym)}
-                            disabled={checkingIn || gym.distance > 100}
-                            size="sm"
-                            className={`${gym.distance <= 100 ? "bg-green-500 hover:bg-green-600" : "bg-gray-400 cursor-not-allowed"} text-white`}
-                          >
-                            {gym.distance <= 100 ? "Check In" : "Too Far"}
-                          </Button>
-                        </div>
-                      ))}
-                      {nearbyGyms.some((gym) => gym.distance <= 100) && (
-                        <Button
-                          onClick={() => handleCheckIn()}
-                          disabled={checkingIn}
-                          className="w-full bg-purple-500 hover:bg-purple-600 text-white"
-                        >
-                          {checkingIn ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Checking In...
-                            </>
-                          ) : (
-                            "Quick Check-in at Closest Gym"
-                          )}
-                        </Button>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <p className="text-sm text-purple-700">No gyms found nearby</p>
-                      <Button
-                        onClick={() => {
-                          playSwordClash()
-                          getUserLocation()
-                        }}
-                        variant="outline"
-                        size="sm"
-                        className="border-purple-400 text-purple-700 bg-transparent"
-                      >
-                        Refresh Location
-                      </Button>
-                    </div>
-                  )}
-
-                  {locationError && <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{locationError}</p>}
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-purple-100 border-purple-300 shadow-lg">
-          <CardHeader className="text-center">
-            <CardTitle className="flex items-center justify-center gap-2 text-purple-900">
-              <svg className="h-6 w-6 text-purple-600" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-              </svg>
-              Heraklion Army NFT
-            </CardTitle>
-            <CardDescription className="text-purple-700">Mint exclusive NFTs on Magic Eden</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="text-center space-y-3">
-              <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-4 rounded-lg text-white">
-                <h3 className="font-bold text-lg mb-2">Heraklion Army Collection</h3>
-                <p className="text-sm opacity-90 mb-3">Exclusive NFT collection for GYMONAD warriors</p>
-                <div className="text-xs font-mono bg-black/20 p-2 rounded break-all">
-                  0xb240c821dd61f4a3ee572591536512111e6ffe45
-                </div>
-              </div>
-
-              {connectedWallet ? (
-                <div className="space-y-3">
-                  <div className="bg-purple-50 p-3 rounded-lg">
-                    <p className="text-sm text-purple-700 mb-2">Connected: {connectedWallet}</p>
-                    <p className="text-xs font-mono text-purple-600">
-                      {walletAddress?.slice(0, 8)}...{walletAddress?.slice(-6)}
-                    </p>
-                  </div>
-
-                  <iframe
-                    src={`https://magiceden.io/embed/mint/0xb240c821dd61f4a3ee572591536512111e6ffe45?wallet=${walletAddress}`}
-                    width="100%"
-                    height="400"
-                    frameBorder="0"
-                    className="rounded-lg border-2 border-purple-300"
-                    title="Magic Eden Mint Terminal"
-                  />
-
-                  <a
-                    href={`https://magiceden.io/collections/ethereum/0xb240c821dd61f4a3ee572591536512111e6ffe45`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-4 py-3 rounded-lg transition-all font-medium"
-                    onClick={playSwordClash}
-                  >
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                    </svg>
-                    View on Magic Eden
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg">
-                    <p className="text-sm text-amber-800">Connect your wallet to access the NFT mint terminal</p>
-                  </div>
-
-                  <a
-                    href="https://magiceden.io/collections/ethereum/0xb240c821dd61f4a3ee572591536512111e6ffe45"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-4 py-3 rounded-lg transition-all font-medium"
-                    onClick={playSwordClash}
-                  >
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                    </svg>
-                    View Collection on Magic Eden
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
       </div>
-
-      <style jsx>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0px) translateX(0px); }
-          25% { transform: translateY(-20px) translateX(10px); }
-          50% { transform: translateY(-10px) translateX(-5px); }
-          75% { transform: translateY(-30px) translateX(15px); }
-        }
-        
-        @keyframes fade {
-          0% { opacity: 0.1; }
-          100% { opacity: 0.4; }
-        }
-      `}</style>
     </div>
   )
 }

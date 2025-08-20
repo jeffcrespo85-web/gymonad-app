@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js"
+import { createBrowserClient } from "@supabase/ssr"
 
 // Check if Supabase environment variables are available
 export const isSupabaseConfigured =
@@ -7,17 +7,15 @@ export const isSupabaseConfigured =
   typeof process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY === "string" &&
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.length > 0
 
-// Create a singleton instance of the Supabase client
-let supabaseInstance: ReturnType<typeof createClient> | null = null
-
-export function getSupabaseClient() {
+export function createClient() {
   if (!isSupabaseConfigured) {
     throw new Error("Supabase is not configured")
   }
 
-  if (!supabaseInstance) {
-    supabaseInstance = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-  }
+  return createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+}
 
-  return supabaseInstance
+// Legacy function for backward compatibility
+export function getSupabaseClient() {
+  return createClient()
 }

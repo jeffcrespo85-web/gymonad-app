@@ -6,7 +6,7 @@ const urlsToCache = [
   "/images/purple-skull.jpg",
   "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/gymonadtheme-Fuh0xpQtOA63uufs61fIneHPY136tL.mp3",
   "/thunder.mp3",
-  "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/swordsclashingmp3-ZkXZPLOZb8nG04XUrskCSFL4CSeqG7.mp3",
+  "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/swordsclashing1sec-Gu3scJA0wJCm9za9kdnHLXcJdMvdkp.mp3",
   "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/guitarmp3-5NQgvR22O7TRWetiCDZvCln2LFfg6h.mp3",
 ]
 
