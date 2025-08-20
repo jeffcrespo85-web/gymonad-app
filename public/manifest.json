@@ -1,103 +1,33 @@
 {
-  "name": "Gymonad - Web3 Fitness App",
-  "short_name": "Gymonad",
-  "description": "Earn $GYM tokens for working out on Monad Testnet",
+  "name": "GYMONAD - Web3 Fitness Tracker",
+  "short_name": "GYMONAD",
+  "description": "Track your fitness journey with Web3 wallet integration",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#000000",
-  "theme_color": "#8b5cf6",
-  "orientation": "portrait-primary",
-  "scope": "/",
-  "lang": "en",
-  "categories": ["fitness", "health", "finance", "lifestyle"],
+  "theme_color": "#8B5CF6",
+  "orientation": "portrait",
   "icons": [
     {
-      "src": "/icons/icon-72x72.png",
-      "sizes": "72x72",
-      "type": "image/png",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/icons/icon-96x96.png",
-      "sizes": "96x96",
-      "type": "image/png",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/icons/icon-128x128.png",
-      "sizes": "128x128",
-      "type": "image/png",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/icons/icon-144x144.png",
-      "sizes": "144x144",
-      "type": "image/png",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/icons/icon-152x152.png",
-      "sizes": "152x152",
-      "type": "image/png",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/icons/icon-192x192.png",
+      "src": "/images/purple-skull.jpg",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable any"
+      "type": "image/jpeg",
+      "purpose": "any maskable"
     },
     {
-      "src": "/icons/icon-384x384.png",
-      "sizes": "384x384",
-      "type": "image/png",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/icons/icon-512x512.png",
+      "src": "/images/purple-skull.jpg",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable any"
+      "type": "image/jpeg",
+      "purpose": "any maskable"
     }
   ],
+  "categories": ["fitness", "health", "lifestyle"],
   "screenshots": [
     {
-      "src": "/screenshots/mobile-1.png",
-      "sizes": "390x844",
-      "type": "image/png",
-      "form_factor": "narrow"
-    },
-    {
-      "src": "/screenshots/desktop-1.png",
+      "src": "/images/gymonad-header.jpg",
       "sizes": "1280x720",
-      "type": "image/png",
+      "type": "image/jpeg",
       "form_factor": "wide"
-    }
-  ],
-  "shortcuts": [
-    {
-      "name": "Record Workout",
-      "short_name": "Workout",
-      "description": "Quickly record a new workout",
-      "url": "/?action=workout",
-      "icons": [
-        {
-          "src": "/icons/workout-shortcut.png",
-          "sizes": "96x96"
-        }
-      ]
-    },
-    {
-      "name": "View Balance",
-      "short_name": "Balance",
-      "description": "Check your $GYM token balance",
-      "url": "/?action=balance",
-      "icons": [
-        {
-          "src": "/icons/balance-shortcut.png",
-          "sizes": "96x96"
-        }
-      ]
     }
   ]
 }
