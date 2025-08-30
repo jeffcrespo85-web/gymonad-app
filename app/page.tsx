@@ -239,25 +239,7 @@ export default function GymonadFitness() {
   }, [])
 
   useEffect(() => {
-    // Load Google Maps API
-    const loadGoogleMaps = () => {
-      if (typeof window !== "undefined" && !window.google) {
-        const script = document.createElement("script")
-        const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,geometry`
-        script.async = true
-        script.defer = true
-        script.onload = () => {
-          console.log("[v0] Google Maps API loaded successfully")
-        }
-        script.onerror = () => {
-          console.error("[v0] Failed to load Google Maps API")
-        }
-        document.head.appendChild(script)
-      }
-    }
-
-    loadGoogleMaps()
+    // Google Maps integration removed for security compliance
   }, [])
 
   useEffect(() => {
@@ -369,51 +351,8 @@ export default function GymonadFitness() {
   }
 
   const findNearbyGymsWithGoogle = async (location: Location): Promise<Gym[]> => {
-    return new Promise((resolve, reject) => {
-      if (!window.google || !window.google.maps) {
-        console.log("[v0] Google Maps not available, using database fallback")
-        resolve([])
-        return
-      }
-
-      try {
-        const map = new window.google.maps.Map(document.createElement("div"))
-        const service = new window.google.maps.places.PlacesService(map)
-
-        const request = {
-          location: new window.google.maps.LatLng(location.latitude, location.longitude),
-          radius: 1000, // 1km radius
-          type: "gym" as any,
-          keyword: "fitness gym workout",
-        }
-
-        service.nearbySearch(request, (results, status) => {
-          if (status === window.google.maps.places.PlacesServiceStatus.OK && results) {
-            const gyms: Gym[] = results.slice(0, 10).map((place, index) => ({
-              id: place.place_id || `google-${index}`,
-              name: place.name || "Unknown Gym",
-              latitude: place.geometry?.location?.lat() || 0,
-              longitude: place.geometry?.location?.lng() || 0,
-              distance: window.google.maps.geometry.spherical.computeDistanceBetween(
-                new window.google.maps.LatLng(location.latitude, location.longitude),
-                place.geometry?.location || new window.google.maps.LatLng(0, 0),
-              ),
-              address: place.vicinity || "",
-              verified_with_google: true,
-            }))
-
-            console.log(`[v0] Found ${gyms.length} gyms via Google Places`)
-            resolve(gyms)
-          } else {
-            console.log("[v0] Google Places search failed, using database fallback")
-            resolve([])
-          }
-        })
-      } catch (error) {
-        console.error("[v0] Google Places API error:", error)
-        resolve([])
-      }
-    })
+    console.log("[v0] Google Maps integration disabled for security")
+    return []
   }
 
   const fetchNearbyGyms = async (location: Location) => {
@@ -471,20 +410,7 @@ export default function GymonadFitness() {
   }
 
   const verifyGymLocationWithGoogle = async (userLoc: Location, gym: Gym): Promise<boolean> => {
-    if (window.google && window.google.maps && window.google.maps.geometry) {
-      try {
-        const userLatLng = new window.google.maps.LatLng(userLoc.latitude, userLoc.longitude)
-        const gymLatLng = new window.google.maps.LatLng(gym.latitude, gym.longitude)
-        const distance = window.google.maps.geometry.spherical.computeDistanceBetween(userLatLng, gymLatLng)
-
-        console.log(`[v0] Google Maps distance to ${gym.name}: ${Math.round(distance)}m`)
-        return distance <= 100
-      } catch (error) {
-        console.error("[v0] Google Maps verification error:", error)
-      }
-    }
-
-    // Fallback to basic calculation
+    console.log(`[v0] Using fallback distance calculation for ${gym.name}`)
     return calculateDistance(userLoc, { latitude: gym.latitude, longitude: gym.longitude }) <= 100
   }
 
@@ -750,10 +676,6 @@ export default function GymonadFitness() {
 
     return `${days}d ${hours}h`
   }
-
-  useEffect(() => {
-    // Google Maps integration removed for security
-  }, [])
 
   if (isLoading) {
     return (
