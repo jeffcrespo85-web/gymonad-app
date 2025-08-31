@@ -29,6 +29,7 @@ declare global {
         }
       }
     }
+    gapi?: any
   }
 }
 
@@ -41,12 +42,14 @@ export default function GymonadFitness() {
   const [musicStarted, setMusicStarted] = useState(false)
   const [achievedMilestones, setAchievedMilestones] = useState<Set<string>>(new Set())
 
-  const [nearbyGyms, setNearbyGyms] = useState<Gym[]>([])
-  const [userLocation, setUserLocation] = useState<Location | null>(null) // For gym check-in
-  const [stepLocation, setStepLocation] = useState<Location | null>(null) // For step tracking
+  const [workoutSpot, setWorkoutSpot] = useState<(Location & { name: string }) | null>(null)
+  const [userLocation, setUserLocation] = useState<Location | null>(null)
+  const [stepLocation, setStepLocation] = useState<Location | null>(null)
   const [locationLoading, setLocationLoading] = useState(false)
   const [locationError, setLocationError] = useState<string | null>(null)
   const [checkingIn, setCheckingIn] = useState(false)
+  const [lastSpotChange, setLastSpotChange] = useState<string | null>(null)
+  const [settingSpot, setSettingSpot] = useState(false)
 
   const [connectedWallet, setConnectedWallet] = useState<string | null>(null)
   const [walletAddress, setWalletAddress] = useState<string | null>(null)
@@ -70,6 +73,117 @@ export default function GymonadFitness() {
   const [lastWinner, setLastWinner] = useState<string | null>(null)
   const [nextDrawDate, setNextDrawDate] = useState<Date | null>(null)
   const [lotteryHistory, setLotteryHistory] = useState<Array<{ winner: string; date: string; tickets: number }>>([])
+  const [nearbyGyms, setNearbyGyms] = useState<Gym[]>([])
+
+  const [googleFitConnected, setGoogleFitConnected] = useState(false)
+  const [googleFitLoading, setGoogleFitLoading] = useState(false)
+
+  const initializeGoogleFit = async () => {
+    setGoogleFitLoading(true)
+    try {
+      // Load Google API
+      await new Promise((resolve, reject) => {
+        const script = document.createElement("script")
+        script.src = "https://apis.google.com/js/api.js"
+        script.onload = resolve
+        script.onerror = reject
+        document.head.appendChild(script)
+      })
+
+      // Initialize Google API
+      await new Promise((resolve) => {
+        window.gapi.load("auth2", resolve)
+      })
+
+      await window.gapi.auth2.init({
+        client_id: "YOUR_GOOGLE_CLIENT_ID", // Replace with your Google Client ID
+      })
+
+      // Load Fitness API
+      await new Promise((resolve) => {
+        window.gapi.load("client", resolve)
+      })
+
+      await window.gapi.client.init({
+        apiKey: "YOUR_GOOGLE_API_KEY", // Replace with your Google API Key
+        discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/fitness/v1/rest"],
+      })
+
+      setGoogleFitConnected(true)
+      console.log("[v0] Google Fit initialized successfully")
+    } catch (error) {
+      console.error("[v0] Google Fit initialization failed:", error)
+      setLocationError("Failed to connect to Google Fit. Using manual tracking.")
+    } finally {
+      setGoogleFitLoading(false)
+    }
+  }
+
+  const connectGoogleFit = async () => {
+    if (!window.gapi) {
+      await initializeGoogleFit()
+    }
+
+    try {
+      const authInstance = window.gapi.auth2.getAuthInstance()
+      const user = await authInstance.signIn({
+        scope: "https://www.googleapis.com/auth/fitness.activity.read",
+      })
+
+      if (user.isSignedIn()) {
+        setGoogleFitConnected(true)
+        fetchGoogleFitSteps()
+        console.log("[v0] Google Fit connected successfully")
+      }
+    } catch (error) {
+      console.error("[v0] Google Fit connection failed:", error)
+      setLocationError("Failed to connect to Google Fit")
+    }
+  }
+
+  const fetchGoogleFitSteps = async () => {
+    if (!googleFitConnected || !window.gapi) return
+
+    try {
+      const now = new Date()
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000)
+
+      const request = {
+        aggregateBy: [
+          {
+            dataTypeName: "com.google.step_count.delta",
+            dataSourceId: "derived:com.google.step_count.delta:com.google.android.gms:estimated_steps",
+          },
+        ],
+        bucketByTime: { durationMillis: 86400000 }, // 1 day
+        startTimeMillis: startOfDay.getTime(),
+        endTimeMillis: endOfDay.getTime(),
+      }
+
+      const response = await window.gapi.client.fitness.users.dataset.aggregate({
+        userId: "me",
+        resource: request,
+      })
+
+      if (response.result.bucket && response.result.bucket.length > 0) {
+        const bucket = response.result.bucket[0]
+        if (bucket.dataset && bucket.dataset.length > 0) {
+          const dataset = bucket.dataset[0]
+          if (dataset.point && dataset.point.length > 0) {
+            const stepCount = dataset.point[0].value[0].intVal || 0
+            const oldSteps = steps
+            setSteps(stepCount)
+            checkStepMilestones(stepCount, oldSteps)
+            localStorage.setItem("steps", stepCount.toString())
+            console.log("[v0] Google Fit steps updated:", stepCount)
+          }
+        }
+      }
+    } catch (error) {
+      console.error("[v0] Failed to fetch Google Fit steps:", error)
+    }
+  }
 
   const playSwordClash = () => {
     const audio = new Audio("https://hebbkx1anhila5yf.public.blob.vercel-storage.com/swordsclashing1sec-Gu3scJA0wJCm9za9kdnHLXcJdMvdkp.mp3")
@@ -176,6 +290,335 @@ export default function GymonadFitness() {
     playGuitarMilestone() // Play reward sound
   }
 
+  const setWorkoutSpotLocation = async () => {
+    setLocationLoading(true)
+    setLocationError(null)
+
+    try {
+      const location = await getCurrentLocation()
+      setUserLocation(location)
+
+      // Check if user can change spot (once per month)
+      const lastChange = localStorage.getItem("lastSpotChange")
+      const now = new Date()
+      const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate())
+
+      if (lastChange && new Date(lastChange) > oneMonthAgo) {
+        const nextChangeDate = new Date(lastChange)
+        nextChangeDate.setMonth(nextChangeDate.getMonth() + 1)
+        setLocationError(`You can change your workout spot again on ${nextChangeDate.toLocaleDateString()}`)
+        return
+      }
+
+      setSettingSpot(true)
+    } catch (error) {
+      console.error("Location error:", error)
+      setLocationError("Unable to access location. Please enable location services.")
+    } finally {
+      setLocationLoading(false)
+    }
+  }
+
+  const confirmWorkoutSpot = (spotName: string) => {
+    if (!userLocation) return
+
+    const newSpot = {
+      ...userLocation,
+      name: spotName || "My Workout Spot",
+    }
+
+    setWorkoutSpot(newSpot)
+    const today = new Date().toISOString()
+    setLastSpotChange(today)
+
+    localStorage.setItem("workoutSpot", JSON.stringify(newSpot))
+    localStorage.setItem("lastSpotChange", today)
+
+    setSettingSpot(false)
+    setLocationError(null)
+    playSwordClash()
+    console.log(`[v0] Workout spot set: ${newSpot.name}`)
+  }
+
+  const getLocationForCheckIn = async () => {
+    setLocationLoading(true)
+    setLocationError(null)
+
+    try {
+      const location = await getCurrentLocation()
+      setUserLocation(location)
+    } catch (error) {
+      console.error("Location error:", error)
+      setLocationError("Unable to access location for check-in. Please enable location services.")
+    } finally {
+      setLocationLoading(false)
+    }
+  }
+
+  const handleWorkoutCheckIn = async () => {
+    playSwordClash()
+
+    if (!workoutSpot) {
+      setLocationError("Please set your workout spot first")
+      return
+    }
+
+    if (!userLocation) {
+      await getLocationForCheckIn()
+      return
+    }
+
+    setCheckingIn(true)
+
+    try {
+      const distance = calculateDistance(userLocation, workoutSpot)
+
+      if (distance > 100) {
+        setLocationError(
+          `You must be within 100m of ${workoutSpot.name} to check in. Currently ${Math.round(distance)}m away.`,
+        )
+        setCheckingIn(false)
+        return
+      }
+
+      // Save check-in to database if available
+      if (isSupabaseConfigured) {
+        try {
+          const supabase = createClient()
+          const { error } = await supabase.from("checkins").insert({
+            spot_name: workoutSpot.name,
+            spot_latitude: workoutSpot.latitude,
+            spot_longitude: workoutSpot.longitude,
+            user_latitude: userLocation.latitude,
+            user_longitude: userLocation.longitude,
+            distance_meters: Math.round(distance),
+            wallet_address: walletAddress,
+          })
+
+          if (error && !error.message.includes("table") && !error.message.includes("does not exist")) {
+            throw error
+          }
+        } catch (error) {
+          console.error("Error saving check-in to database:", error)
+        }
+      }
+
+      const today = new Date().toDateString()
+      setCheckedIn(true)
+      setLastCheckIn(today)
+      localStorage.setItem("checkedIn", "true")
+      localStorage.setItem("lastCheckIn", today)
+
+      awardTicket("workout spot check-in")
+      playGuitarMilestone()
+      console.log(`[v0] Successfully checked in at ${workoutSpot.name}`)
+    } catch (error) {
+      console.error("Check-in error:", error)
+      setLocationError("Failed to check in. Please try again.")
+    } finally {
+      setCheckingIn(false)
+    }
+  }
+
+  const resetStepsValue = () => {
+    setSteps(0)
+    localStorage.setItem("steps", "0")
+    setAchievedMilestones(new Set())
+    localStorage.removeItem("achievedMilestones")
+  }
+
+  const startAutoStepTracking = async () => {
+    if (googleFitConnected) {
+      // Use Google Fit for step tracking
+      fetchGoogleFitSteps()
+      // Set up periodic updates every 5 minutes
+      const intervalId = setInterval(fetchGoogleFitSteps, 5 * 60 * 1000)
+      setWatchId(intervalId as any)
+      setAutoStepTracking(true)
+      return
+    }
+
+    // Fallback to GPS tracking if Google Fit not available
+    if (!navigator.geolocation) {
+      setLocationError("Geolocation is not supported by this browser")
+      return
+    }
+
+    setLocationLoading(true)
+    setLocationError(null)
+
+    try {
+      const initialLocation = await new Promise<Location>((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+          reject(new Error("Location request timed out. Please ensure GPS is enabled and try again."))
+        }, 15000) // Increased timeout to 15 seconds
+
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            clearTimeout(timeoutId)
+            resolve({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            })
+          },
+          (error) => {
+            clearTimeout(timeoutId)
+            let errorMessage = "Location access failed"
+            switch (error.code) {
+              case error.PERMISSION_DENIED:
+                errorMessage = "Location permission denied. Please enable location access in your browser."
+                break
+              case error.POSITION_UNAVAILABLE:
+                errorMessage = "Location information unavailable. Please check your GPS settings."
+                break
+              case error.TIMEOUT:
+                errorMessage = "Location request timed out. Please try again."
+                break
+              default:
+                errorMessage = `Location error: ${error.message}`
+            }
+            reject(new Error(errorMessage))
+          },
+          {
+            enableHighAccuracy: false, // Use less accurate but faster location
+            timeout: 12000, // 12 second timeout for initial request
+            maximumAge: 10000, // Accept cached location up to 10 seconds old
+          },
+        )
+      })
+
+      setStepLocation(initialLocation)
+      setLastPosition(initialLocation)
+
+      const id = navigator.geolocation.watchPosition(
+        (position) => {
+          const newLocation: Location = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          }
+
+          if (lastPosition) {
+            const distance = calculateDistance(lastPosition, newLocation)
+
+            if (distance >= 0.5 && distance <= 100) {
+              setTotalDistance((prev) => {
+                const newTotal = prev + distance
+
+                const newSteps = Math.floor(newTotal * 1.3)
+                const currentSteps = Math.floor(prev * 1.3)
+                const stepIncrease = newSteps - currentSteps
+
+                if (stepIncrease > 0) {
+                  setSteps((prevSteps) => {
+                    const updatedSteps = prevSteps + stepIncrease
+                    checkStepMilestones(updatedSteps, prevSteps)
+                    return updatedSteps
+                  })
+                }
+
+                return newTotal
+              })
+            }
+          }
+
+          setStepLocation(newLocation)
+          setLastPosition(newLocation)
+        },
+        (error) => {
+          console.error("Step tracking location error:", error)
+          console.log("[v0] Location tracking error, continuing:", error.message)
+        },
+        {
+          enableHighAccuracy: false, // Use less accurate but more reliable location
+          timeout: 20000, // Increased timeout to 20 seconds
+          maximumAge: 15000, // Accept older cached positions
+        },
+      )
+
+      setWatchId(id)
+      setAutoStepTracking(true)
+      setLocationError(null) // Clear any previous errors on success
+    } catch (error) {
+      console.error("Step location error:", error)
+      setLocationError(
+        error.message || "Unable to access location for step tracking. Please enable location services and try again.",
+      )
+    } finally {
+      setLocationLoading(false)
+    }
+  }
+
+  const stopAutoStepTracking = () => {
+    if (watchId !== null) {
+      navigator.geolocation.clearWatch(watchId)
+      clearInterval(watchId)
+      setWatchId(null)
+    }
+    setAutoStepTracking(false)
+    setLastPosition(null)
+  }
+
+  const progressPercentageValue = Math.min((steps / dailyGoal) * 100, 100)
+
+  const getNextDrawSunday = () => {
+    const now = new Date()
+    const nextSunday = new Date(now)
+    nextSunday.setUTCDate(now.getUTCDate() + (7 - now.getUTCDay()))
+    nextSunday.setUTCHours(20, 0, 0, 0) // 8 PM UTC
+    return nextSunday
+  }
+
+  const drawLotteryWinner = () => {
+    if (!connectedWallet || !walletAddress || lotteryEntries === 0) {
+      alert("Need connected wallet and lottery entries to draw!")
+      return
+    }
+
+    // Simple random selection (in real app, this would be more sophisticated)
+    const winner = walletAddress
+    const drawDate = new Date().toISOString().split("T")[0]
+
+    // Update lottery history
+    const newEntry = {
+      winner: winner,
+      date: drawDate,
+      tickets: lotteryEntries,
+    }
+
+    const updatedHistory = [newEntry, ...lotteryHistory.slice(0, 4)] // Keep last 5 winners
+    setLotteryHistory(updatedHistory)
+    localStorage.setItem("lotteryHistory", JSON.stringify(updatedHistory))
+
+    // Set as last winner
+    setLastWinner(winner)
+    localStorage.setItem("lastWinner", winner)
+
+    // Reset lottery entries and set next draw date
+    setLotteryEntries(0)
+    localStorage.setItem("lotteryEntries", "0")
+
+    const nextSunday = getNextDrawSunday()
+    setNextDrawDate(nextSunday)
+    localStorage.setItem("nextDrawDate", nextSunday.toISOString())
+
+    playGuitarMilestone()
+    alert(`🎉 Lottery Winner: ${winner.slice(0, 6)}...${winner.slice(-4)}\n5 MONAD tokens will be sent manually!`)
+  }
+
+  const getTimeUntilLotteryDraw = () => {
+    if (!nextDrawDate) return "Loading..."
+
+    const now = new Date()
+    const diff = nextDrawDate.getTime() - now.getTime()
+
+    if (diff <= 0) return "Draw Ready!"
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+
+    return `${days}d ${hours}h`
+  }
+
   useEffect(() => {
     const savedSteps = localStorage.getItem("steps")
     const savedCheckedIn = localStorage.getItem("checkedIn")
@@ -225,7 +668,7 @@ export default function GymonadFitness() {
       setNextDrawDate(new Date(savedNextDrawDate))
     } else {
       // Set next draw date to next Sunday at 8 PM UTC
-      const nextSunday = getNextSunday()
+      const nextSunday = getNextDrawSunday()
       setNextDrawDate(nextSunday)
       localStorage.setItem("nextDrawDate", nextSunday.toISOString())
     }
@@ -233,6 +676,16 @@ export default function GymonadFitness() {
     const savedLotteryHistory = localStorage.getItem("lotteryHistory")
     if (savedLotteryHistory) {
       setLotteryHistory(JSON.parse(savedLotteryHistory))
+    }
+
+    const savedSpot = localStorage.getItem("workoutSpot")
+    const savedSpotChange = localStorage.getItem("lastSpotChange")
+
+    if (savedSpot) {
+      setWorkoutSpot(JSON.parse(savedSpot))
+    }
+    if (savedSpotChange) {
+      setLastSpotChange(savedSpotChange)
     }
 
     setTimeout(() => setIsLoading(false), 2000)
@@ -414,7 +867,7 @@ export default function GymonadFitness() {
     return calculateDistance(userLoc, { latitude: gym.latitude, longitude: gym.longitude }) <= 100
   }
 
-  const handleCheckIn = async (gym?: Gym) => {
+  const handleGymCheckIn = async (gym?: Gym) => {
     playSwordClash()
 
     if (!userLocation) {
@@ -488,193 +941,6 @@ export default function GymonadFitness() {
     } finally {
       setCheckingIn(false)
     }
-  }
-
-  const resetSteps = () => {
-    setSteps(0)
-    localStorage.setItem("steps", "0")
-    setAchievedMilestones(new Set())
-    localStorage.removeItem("achievedMilestones")
-  }
-
-  const startLocationTracking = async () => {
-    if (!navigator.geolocation) {
-      setLocationError("Geolocation is not supported by this browser")
-      return
-    }
-
-    setLocationLoading(true)
-    setLocationError(null)
-
-    try {
-      const initialLocation = await new Promise<Location>((resolve, reject) => {
-        const timeoutId = setTimeout(() => {
-          reject(new Error("Location request timed out. Please ensure GPS is enabled and try again."))
-        }, 15000) // Increased timeout to 15 seconds
-
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            clearTimeout(timeoutId)
-            resolve({
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude,
-            })
-          },
-          (error) => {
-            clearTimeout(timeoutId)
-            let errorMessage = "Location access failed"
-            switch (error.code) {
-              case error.PERMISSION_DENIED:
-                errorMessage = "Location permission denied. Please enable location access in your browser."
-                break
-              case error.POSITION_UNAVAILABLE:
-                errorMessage = "Location information unavailable. Please check your GPS settings."
-                break
-              case error.TIMEOUT:
-                errorMessage = "Location request timed out. Please try again."
-                break
-              default:
-                errorMessage = `Location error: ${error.message}`
-            }
-            reject(new Error(errorMessage))
-          },
-          {
-            enableHighAccuracy: false, // Use less accurate but faster location
-            timeout: 12000, // 12 second timeout for initial request
-            maximumAge: 10000, // Accept cached location up to 10 seconds old
-          },
-        )
-      })
-
-      setStepLocation(initialLocation)
-      setLastPosition(initialLocation)
-
-      const id = navigator.geolocation.watchPosition(
-        (position) => {
-          const newLocation: Location = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          }
-
-          if (lastPosition) {
-            const distance = calculateDistance(lastPosition, newLocation)
-
-            if (distance >= 0.5 && distance <= 100) {
-              setTotalDistance((prev) => {
-                const newTotal = prev + distance
-
-                const newSteps = Math.floor(newTotal * 1.3)
-                const currentSteps = Math.floor(prev * 1.3)
-                const stepIncrease = newSteps - currentSteps
-
-                if (stepIncrease > 0) {
-                  setSteps((prevSteps) => {
-                    const updatedSteps = prevSteps + stepIncrease
-                    checkStepMilestones(updatedSteps, prevSteps)
-                    return updatedSteps
-                  })
-                }
-
-                return newTotal
-              })
-            }
-          }
-
-          setStepLocation(newLocation)
-          setLastPosition(newLocation)
-        },
-        (error) => {
-          console.error("Step tracking location error:", error)
-          console.log("[v0] Location tracking error, continuing:", error.message)
-        },
-        {
-          enableHighAccuracy: false, // Use less accurate but more reliable location
-          timeout: 20000, // Increased timeout to 20 seconds
-          maximumAge: 15000, // Accept older cached positions
-        },
-      )
-
-      setWatchId(id)
-      setAutoStepTracking(true)
-      setLocationError(null) // Clear any previous errors on success
-    } catch (error) {
-      console.error("Step location error:", error)
-      setLocationError(
-        error.message || "Unable to access location for step tracking. Please enable location services and try again.",
-      )
-    } finally {
-      setLocationLoading(false)
-    }
-  }
-
-  const stopLocationTracking = () => {
-    if (watchId !== null) {
-      navigator.geolocation.clearWatch(watchId)
-      setWatchId(null)
-    }
-    setAutoStepTracking(false)
-    setLastPosition(null)
-  }
-
-  const progressPercentage = Math.min((steps / dailyGoal) * 100, 100)
-
-  const getNextSunday = () => {
-    const now = new Date()
-    const nextSunday = new Date(now)
-    nextSunday.setUTCDate(now.getUTCDate() + (7 - now.getUTCDay()))
-    nextSunday.setUTCHours(20, 0, 0, 0) // 8 PM UTC
-    return nextSunday
-  }
-
-  const drawLottery = () => {
-    if (!connectedWallet || !walletAddress || lotteryEntries === 0) {
-      alert("Need connected wallet and lottery entries to draw!")
-      return
-    }
-
-    // Simple random selection (in real app, this would be more sophisticated)
-    const winner = walletAddress
-    const drawDate = new Date().toISOString().split("T")[0]
-
-    // Update lottery history
-    const newEntry = {
-      winner: winner,
-      date: drawDate,
-      tickets: lotteryEntries,
-    }
-
-    const updatedHistory = [newEntry, ...lotteryHistory.slice(0, 4)] // Keep last 5 winners
-    setLotteryHistory(updatedHistory)
-    localStorage.setItem("lotteryHistory", JSON.stringify(updatedHistory))
-
-    // Set as last winner
-    setLastWinner(winner)
-    localStorage.setItem("lastWinner", winner)
-
-    // Reset lottery entries and set next draw date
-    setLotteryEntries(0)
-    localStorage.setItem("lotteryEntries", "0")
-
-    const nextSunday = getNextSunday()
-    setNextDrawDate(nextSunday)
-    localStorage.setItem("nextDrawDate", nextSunday.toISOString())
-
-    playGuitarMilestone()
-    alert(`🎉 Lottery Winner: ${winner.slice(0, 6)}...${winner.slice(-4)}\n5 MONAD tokens will be sent manually!`)
-  }
-
-  const getTimeUntilDraw = () => {
-    if (!nextDrawDate) return "Loading..."
-
-    const now = new Date()
-    const diff = nextDrawDate.getTime() - now.getTime()
-
-    if (diff <= 0) return "Draw Ready!"
-
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
-
-    return `${days}d ${hours}h`
   }
 
   if (isLoading) {
@@ -976,37 +1242,75 @@ export default function GymonadFitness() {
                 )}
               </div>
 
-              <Progress value={progressPercentage} className="h-3 bg-purple-200 [&>div]:bg-purple-500" />
+              <Progress value={progressPercentageValue} className="h-3 bg-purple-200 [&>div]:bg-purple-500" />
 
               <div className="text-center text-sm text-purple-700">
-                {progressPercentage >= 100 ? (
+                {progressPercentageValue >= 100 ? (
                   <Badge variant="default" className="bg-purple-500 text-white">
                     🎉 Goal Achieved!
                   </Badge>
                 ) : (
-                  `${Math.round(progressPercentage)}% complete`
+                  `${Math.round(progressPercentageValue)}% complete`
                 )}
               </div>
 
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-amber-800 font-medium">Auto Step Tracking</span>
+                  <span className="text-amber-800 font-medium">Google Fit Integration</span>
+                  <button
+                    onClick={() => {
+                      playSwordClash()
+                      if (googleFitConnected) {
+                        setGoogleFitConnected(false)
+                        setAutoStepTracking(false)
+                      } else {
+                        connectGoogleFit()
+                      }
+                    }}
+                    disabled={googleFitLoading}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      googleFitConnected
+                        ? "bg-green-500 text-white"
+                        : googleFitLoading
+                          ? "bg-gray-300 text-gray-600"
+                          : "bg-amber-100 text-amber-800 hover:bg-amber-200"
+                    }`}
+                  >
+                    {googleFitLoading ? "Connecting..." : googleFitConnected ? "✓ Connected" : "Connect Google Fit"}
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-amber-800 font-medium">
+                    {googleFitConnected ? "Auto Sync" : "GPS Step Tracking"}
+                  </span>
                   <button
                     onClick={() => {
                       if (autoStepTracking) {
-                        stopLocationTracking()
+                        stopAutoStepTracking()
                       } else {
-                        startLocationTracking()
+                        startAutoStepTracking()
                       }
                     }}
                     className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                       autoStepTracking ? "bg-amber-500 text-white" : "bg-amber-100 text-amber-800 hover:bg-amber-200"
                     }`}
                   >
-                    {autoStepTracking ? "Stop GPS Tracking" : "Start GPS Tracking"}
+                    {autoStepTracking
+                      ? googleFitConnected
+                        ? "Stop Sync"
+                        : "Stop GPS"
+                      : googleFitConnected
+                        ? "Start Sync"
+                        : "Start GPS"}
                   </button>
                 </div>
-                {autoStepTracking && stepLocation && (
+
+                {googleFitConnected && (
+                  <p className="text-sm text-green-700">✓ Google Fit connected • Steps sync automatically</p>
+                )}
+
+                {autoStepTracking && stepLocation && !googleFitConnected && (
                   <p className="text-sm text-amber-700">
                     📍 GPS tracking active • Distance: {totalDistance.toFixed(1)}m
                   </p>
@@ -1016,7 +1320,7 @@ export default function GymonadFitness() {
               <Button
                 onClick={() => {
                   playSwordClash()
-                  resetSteps()
+                  resetStepsValue()
                   setTotalDistance(0)
                 }}
                 variant="destructive"
@@ -1036,94 +1340,134 @@ export default function GymonadFitness() {
             <CardHeader className="text-center">
               <CardTitle className="flex items-center justify-center gap-2 text-purple-900">
                 <Calendar className="h-6 w-6 text-purple-600" />
-                Gym Check-in
+                Workout Spot Check-in
               </CardTitle>
               <CardDescription className="text-purple-700">
-                Check in at nearby gyms • 1 ticket per check-in
+                Check in at your designated workout spot • 1 ticket per check-in
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="text-center">
-                {checkedIn ? (
+                {!workoutSpot ? (
+                  <div className="space-y-4">
+                    <div className="h-12 w-12 border-2 border-dashed border-purple-400 rounded-full mx-auto flex items-center justify-center">
+                      <MapPin className="h-6 w-6 text-purple-600" />
+                    </div>
+                    <p className="text-sm text-purple-700">Set your designated workout spot</p>
+                    <Button
+                      onClick={setWorkoutSpotLocation}
+                      disabled={locationLoading}
+                      className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
+                    >
+                      {locationLoading ? "Getting Location..." : "Set Workout Spot"}
+                    </Button>
+                  </div>
+                ) : checkedIn ? (
                   <div className="space-y-2">
                     <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
                     <Badge variant="default" className="bg-green-500 text-white">
                       Checked in today!
                     </Badge>
                     {lastCheckIn && <p className="text-sm text-purple-700">Last check-in: {lastCheckIn}</p>}
-                    {localStorage.getItem("lastGym") && (
-                      <p className="text-sm text-purple-600">at {localStorage.getItem("lastGym")}</p>
-                    )}
+                    <p className="text-sm text-purple-600">at {workoutSpot.name}</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
+                    <div className="p-3 bg-purple-50 rounded-lg">
+                      <p className="font-medium text-purple-900 text-sm">{workoutSpot.name}</p>
+                      <p className="text-xs text-purple-600">Your designated workout spot</p>
+                    </div>
+
                     {!userLocation ? (
-                      <div className="space-y-4">
-                        <div className="h-12 w-12 border-2 border-dashed border-purple-400 rounded-full mx-auto flex items-center justify-center">
-                          <MapPin className="h-6 w-6 text-purple-600" />
-                        </div>
-                        <Button
-                          onClick={getGymLocation}
-                          disabled={locationLoading}
-                          className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
-                        >
-                          {locationLoading ? "Finding Location..." : "Find Nearby Gyms"}
-                        </Button>
-                      </div>
-                    ) : nearbyGyms.length > 0 ? (
-                      <div className="space-y-3">
-                        <p className="text-sm text-purple-700">Nearby gyms:</p>
-                        {nearbyGyms.slice(0, 3).map((gym) => (
-                          <div key={gym.id} className="flex items-center justify-between p-2 bg-purple-50 rounded-lg">
-                            <div className="text-left">
-                              <p className="font-medium text-purple-900 text-sm">{gym.name}</p>
-                              <p className="text-xs text-purple-600">{Math.round(gym.distance)}m away</p>
-                            </div>
-                            <Button
-                              onClick={() => handleCheckIn(gym)}
-                              disabled={checkingIn || gym.distance > 100}
-                              size="sm"
-                              className={`${gym.distance <= 100 ? "bg-green-500 hover:bg-green-600" : "bg-gray-400 cursor-not-allowed"} text-white`}
-                            >
-                              {gym.distance <= 100 ? "Check In" : "Too Far"}
-                            </Button>
-                          </div>
-                        ))}
-                        {nearbyGyms.some((gym) => gym.distance <= 100) && (
-                          <Button
-                            onClick={handleCheckIn}
-                            disabled={checkingIn}
-                            className="w-full bg-purple-500 hover:bg-purple-600 text-white"
-                          >
-                            {checkingIn ? (
-                              <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                Checking In...
-                              </>
-                            ) : (
-                              "Quick Check-in at Closest Gym"
-                            )}
-                          </Button>
-                        )}
-                      </div>
+                      <Button
+                        onClick={getLocationForCheckIn}
+                        disabled={locationLoading}
+                        className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                      >
+                        {locationLoading ? "Getting Location..." : "Get Location to Check In"}
+                      </Button>
                     ) : (
                       <div className="space-y-2">
-                        <p className="text-sm text-purple-700">No gyms found nearby</p>
+                        <p className="text-xs text-purple-600">
+                          Distance: {Math.round(calculateDistance(userLocation, workoutSpot))}m away
+                        </p>
                         <Button
-                          onClick={getGymLocation}
-                          variant="outline"
-                          size="sm"
-                          className="border-purple-400 text-purple-700 bg-transparent"
+                          onClick={handleWorkoutCheckIn}
+                          disabled={checkingIn || calculateDistance(userLocation, workoutSpot) > 100}
+                          className={`w-full ${calculateDistance(userLocation, workoutSpot) <= 100 ? "bg-green-500 hover:bg-green-600" : "bg-gray-400 cursor-not-allowed"} text-white`}
                         >
-                          Refresh Location
+                          {checkingIn ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Checking In...
+                            </>
+                          ) : calculateDistance(userLocation, workoutSpot) <= 100 ? (
+                            "Check In"
+                          ) : (
+                            "Too Far Away"
+                          )}
                         </Button>
                       </div>
                     )}
 
-                    {locationError && <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{locationError}</p>}
+                    <div className="pt-2 border-t border-purple-200">
+                      <Button
+                        onClick={setWorkoutSpotLocation}
+                        variant="outline"
+                        size="sm"
+                        className="w-full border-purple-400 text-purple-700 bg-transparent text-xs"
+                        disabled={
+                          lastSpotChange && new Date(lastSpotChange) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+                        }
+                      >
+                        Change Workout Spot
+                        {lastSpotChange && (
+                          <span className="ml-1 text-xs">
+                            (Next:{" "}
+                            {new Date(
+                              new Date(lastSpotChange).getTime() + 30 * 24 * 60 * 60 * 1000,
+                            ).toLocaleDateString()}
+                            )
+                          </span>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>
+
+              {settingSpot && userLocation && (
+                <div className="space-y-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-800 font-medium">Set your workout spot name:</p>
+                  <input
+                    type="text"
+                    placeholder="e.g., Home Gym, Local Park, etc."
+                    className="w-full p-2 border border-yellow-300 rounded text-sm"
+                    onKeyPress={(e) => {
+                      if (e.key === "Enter") {
+                        confirmWorkoutSpot((e.target as HTMLInputElement).value)
+                      }
+                    }}
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => {
+                        const input = document.querySelector('input[placeholder*="Home Gym"]') as HTMLInputElement
+                        confirmWorkoutSpot(input?.value || "My Workout Spot")
+                      }}
+                      size="sm"
+                      className="flex-1 bg-green-500 hover:bg-green-600 text-white"
+                    >
+                      Confirm Spot
+                    </Button>
+                    <Button onClick={() => setSettingSpot(false)} variant="outline" size="sm" className="flex-1">
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {locationError && <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{locationError}</p>}
             </CardContent>
           </Card>
 
@@ -1200,7 +1544,7 @@ export default function GymonadFitness() {
                   <div className="text-sm text-amber-700">Your Entries</div>
                 </div>
                 <div className="bg-yellow-200 rounded-lg p-3">
-                  <div className="text-lg font-bold text-amber-900">{getTimeUntilDraw()}</div>
+                  <div className="text-lg font-bold text-amber-900">{getTimeUntilLotteryDraw()}</div>
                   <div className="text-sm text-amber-700">Next Draw</div>
                 </div>
               </div>
@@ -1222,7 +1566,7 @@ export default function GymonadFitness() {
               {/* Admin draw button - hidden in production */}
               {process.env.NODE_ENV === "development" && (
                 <Button
-                  onClick={drawLottery}
+                  onClick={drawLotteryWinner}
                   className="w-full bg-amber-500 hover:bg-amber-600 text-white"
                   disabled={lotteryEntries === 0 || !connectedWallet}
                 >
