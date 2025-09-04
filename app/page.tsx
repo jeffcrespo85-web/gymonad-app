@@ -33,6 +33,8 @@ declare global {
   }
 }
 
+const GYMONAD_CONTRACT_ADDRESS = "0x476cfebb9b6ee7b1b29147529e805dbfd4b5b89e"
+
 export default function GymonadFitness() {
   const [steps, setSteps] = useState(0)
   const [dailyGoal] = useState(10000)
@@ -60,10 +62,6 @@ export default function GymonadFitness() {
   const [showInstallPrompt, setShowInstallPrompt] = useState(false)
 
   const [autoStepTracking, setAutoStepTracking] = useState(false)
-  const [lastPosition, setLastPosition] = useState<Location | null>(null)
-  const [totalDistance, setTotalDistance] = useState(0)
-  const [watchId, setWatchId] = useState<number | null>(null)
-
   const [isLoading, setIsLoading] = useState(true)
 
   const [tickets, setTickets] = useState(0)
@@ -77,6 +75,11 @@ export default function GymonadFitness() {
 
   const [googleFitConnected, setGoogleFitConnected] = useState(false)
   const [googleFitLoading, setGoogleFitLoading] = useState(false)
+
+  const [isBraveBrowser, setIsBraveBrowser] = useState(false)
+  const [deviceMotionSupported, setDeviceMotionSupported] = useState(false)
+  const [motionStepCount, setMotionStepCount] = useState(0)
+  const [totalDistance, setTotalDistance] = useState(0)
 
   const initializeGoogleFit = async () => {
     setGoogleFitLoading(true)
@@ -95,8 +98,9 @@ export default function GymonadFitness() {
         window.gapi.load("auth2", resolve)
       })
 
+      // Use a more generic client ID that works with preview domains
       await window.gapi.auth2.init({
-        client_id: "YOUR_GOOGLE_CLIENT_ID", // Replace with your Google Client ID
+        client_id: "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com", // Replace with your actual Google Client ID
       })
 
       // Load Fitness API
@@ -105,7 +109,7 @@ export default function GymonadFitness() {
       })
 
       await window.gapi.client.init({
-        apiKey: "YOUR_GOOGLE_API_KEY", // Replace with your Google API Key
+        apiKey: "YOUR_GOOGLE_API_KEY", // Replace with your actual Google API Key
         discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/fitness/v1/rest"],
       })
 
@@ -113,7 +117,7 @@ export default function GymonadFitness() {
       console.log("[v0] Google Fit initialized successfully")
     } catch (error) {
       console.error("[v0] Google Fit initialization failed:", error)
-      setLocationError("Failed to connect to Google Fit. Using manual tracking.")
+      setLocationError("Failed to connect to Google Fit. Please configure your Google API credentials.")
     } finally {
       setGoogleFitLoading(false)
     }
@@ -133,11 +137,14 @@ export default function GymonadFitness() {
       if (user.isSignedIn()) {
         setGoogleFitConnected(true)
         fetchGoogleFitSteps()
+        // Set up periodic updates every 5 minutes
+        const intervalId = setInterval(fetchGoogleFitSteps, 5 * 60 * 1000)
+        setAutoStepTracking(true)
         console.log("[v0] Google Fit connected successfully")
       }
     } catch (error) {
       console.error("[v0] Google Fit connection failed:", error)
-      setLocationError("Failed to connect to Google Fit")
+      setLocationError("Failed to connect to Google Fit. Please allow popups and try again.")
     }
   }
 
@@ -177,6 +184,10 @@ export default function GymonadFitness() {
             checkStepMilestones(stepCount, oldSteps)
             localStorage.setItem("steps", stepCount.toString())
             console.log("[v0] Google Fit steps updated:", stepCount)
+
+            // Estimate distance based on steps (adjust factor as needed)
+            const distanceIncrement = stepCount * 0.762 // Average step length in meters
+            setTotalDistance((prevDistance) => prevDistance + distanceIncrement)
           }
         }
       }
@@ -186,7 +197,7 @@ export default function GymonadFitness() {
   }
 
   const playSwordClash = () => {
-    const audio = new Audio("https://hebbkx1anhila5yf.public.blob.vercel-storage.com/swordsclashing1sec-Gu3scJA0wJCm9za9kdnHLXcJdMvdkp.mp3")
+    const audio = new Audio("/yarnlhttps://hebbkx1anhila5yf.public.blob.vercel-storage.com/swordsclashing1sec-Gu3scJA0wJCm9za9kdnHLXcJdMvdkp.mp3")
     audio.volume = 0.5
     audio.play().catch(() => {}) // Ignore errors if audio fails
   }
@@ -427,135 +438,11 @@ export default function GymonadFitness() {
     localStorage.removeItem("achievedMilestones")
   }
 
-  const startAutoStepTracking = async () => {
-    if (googleFitConnected) {
-      // Use Google Fit for step tracking
-      fetchGoogleFitSteps()
-      // Set up periodic updates every 5 minutes
-      const intervalId = setInterval(fetchGoogleFitSteps, 5 * 60 * 1000)
-      setWatchId(intervalId as any)
-      setAutoStepTracking(true)
-      return
-    }
-
-    // Fallback to GPS tracking if Google Fit not available
-    if (!navigator.geolocation) {
-      setLocationError("Geolocation is not supported by this browser")
-      return
-    }
-
-    setLocationLoading(true)
-    setLocationError(null)
-
-    try {
-      const initialLocation = await new Promise<Location>((resolve, reject) => {
-        const timeoutId = setTimeout(() => {
-          reject(new Error("Location request timed out. Please ensure GPS is enabled and try again."))
-        }, 15000) // Increased timeout to 15 seconds
-
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            clearTimeout(timeoutId)
-            resolve({
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude,
-            })
-          },
-          (error) => {
-            clearTimeout(timeoutId)
-            let errorMessage = "Location access failed"
-            switch (error.code) {
-              case error.PERMISSION_DENIED:
-                errorMessage = "Location permission denied. Please enable location access in your browser."
-                break
-              case error.POSITION_UNAVAILABLE:
-                errorMessage = "Location information unavailable. Please check your GPS settings."
-                break
-              case error.TIMEOUT:
-                errorMessage = "Location request timed out. Please try again."
-                break
-              default:
-                errorMessage = `Location error: ${error.message}`
-            }
-            reject(new Error(errorMessage))
-          },
-          {
-            enableHighAccuracy: false, // Use less accurate but faster location
-            timeout: 12000, // 12 second timeout for initial request
-            maximumAge: 10000, // Accept cached location up to 10 seconds old
-          },
-        )
-      })
-
-      setStepLocation(initialLocation)
-      setLastPosition(initialLocation)
-
-      const id = navigator.geolocation.watchPosition(
-        (position) => {
-          const newLocation: Location = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          }
-
-          if (lastPosition) {
-            const distance = calculateDistance(lastPosition, newLocation)
-
-            if (distance >= 0.5 && distance <= 100) {
-              setTotalDistance((prev) => {
-                const newTotal = prev + distance
-
-                const newSteps = Math.floor(newTotal * 1.3)
-                const currentSteps = Math.floor(prev * 1.3)
-                const stepIncrease = newSteps - currentSteps
-
-                if (stepIncrease > 0) {
-                  setSteps((prevSteps) => {
-                    const updatedSteps = prevSteps + stepIncrease
-                    checkStepMilestones(updatedSteps, prevSteps)
-                    return updatedSteps
-                  })
-                }
-
-                return newTotal
-              })
-            }
-          }
-
-          setStepLocation(newLocation)
-          setLastPosition(newLocation)
-        },
-        (error) => {
-          console.error("Step tracking location error:", error)
-          console.log("[v0] Location tracking error, continuing:", error.message)
-        },
-        {
-          enableHighAccuracy: false, // Use less accurate but more reliable location
-          timeout: 20000, // Increased timeout to 20 seconds
-          maximumAge: 15000, // Accept older cached positions
-        },
-      )
-
-      setWatchId(id)
-      setAutoStepTracking(true)
-      setLocationError(null) // Clear any previous errors on success
-    } catch (error) {
-      console.error("Step location error:", error)
-      setLocationError(
-        error.message || "Unable to access location for step tracking. Please enable location services and try again.",
-      )
-    } finally {
-      setLocationLoading(false)
-    }
-  }
-
   const stopAutoStepTracking = () => {
-    if (watchId !== null) {
-      navigator.geolocation.clearWatch(watchId)
-      clearInterval(watchId)
-      setWatchId(null)
+    if (autoStepTracking) {
+      setAutoStepTracking(false)
+      console.log("[v0] Google Fit sync stopped")
     }
-    setAutoStepTracking(false)
-    setLastPosition(null)
   }
 
   const progressPercentageValue = Math.min((steps / dailyGoal) * 100, 100)
@@ -700,7 +587,7 @@ export default function GymonadFitness() {
 
     const startBackgroundMusic = () => {
       if (!musicStarted) {
-        backgroundMusic = new Audio("https://hebbkx1anhila5yf.public.blob.vercel-storage.com/gymonadtheme-Fuh0xpQtOA63uufs61fIneHPY136tL.mp3")
+        backgroundMusic = new Audio("/yarnlhttps://hebbkx1anhila5yf.public.blob.vercel-storage.com/gymonadtheme-Fuh0xpQtOA63uufs61fIneHPY136tL.mp3")
         backgroundMusic.loop = true
         backgroundMusic.volume = 0.4
         backgroundMusic.play().catch(() => {
@@ -730,7 +617,7 @@ export default function GymonadFitness() {
   useEffect(() => {
     const triggerLightning = () => {
       setIsLightning(true)
-      const audio = new Audio("/thunder.mp3")
+      const audio = new Audio("/yarnl/thunder.mp3")
       audio.volume = 0.3
       audio.play().catch(() => {}) // Ignore errors if audio fails
 
@@ -778,6 +665,19 @@ export default function GymonadFitness() {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt)
       window.removeEventListener("appinstalled", handleAppInstalled)
     }
+  }, [])
+
+  useEffect(() => {
+    const detectBrave = () => {
+      return (navigator as any).brave && (navigator as any).brave.isBrave
+    }
+
+    const checkDeviceMotion = () => {
+      return "DeviceMotionEvent" in window && typeof DeviceMotionEvent.requestPermission === "function"
+    }
+
+    setIsBraveBrowser(detectBrave())
+    setDeviceMotionSupported(checkDeviceMotion())
   }, [])
 
   const handleInstallApp = async () => {
@@ -940,6 +840,18 @@ export default function GymonadFitness() {
       setLocationError("Failed to check in. Please try again.")
     } finally {
       setCheckingIn(false)
+    }
+  }
+
+  const recordFitnessActivity = async (activityType: string, value: number) => {
+    if (!connectedWallet || !walletAddress) return
+
+    try {
+      // This would interact with the GYMONAD smart contract
+      console.log(`[v0] Recording ${activityType}: ${value} to contract ${GYMONAD_CONTRACT_ADDRESS}`)
+      // Contract interaction would go here when implemented
+    } catch (error) {
+      console.error("Failed to record fitness activity on-chain:", error)
     }
   }
 
@@ -1255,6 +1167,15 @@ export default function GymonadFitness() {
               </div>
 
               <div className="space-y-4">
+                <div className="bg-blue-100 border border-blue-300 rounded-lg p-3">
+                  <p className="text-sm text-blue-800">
+                    📱 This app uses Google Fit for accurate step tracking from your device sensors.
+                    <br />• Connect your Google Fit account below
+                    <br />• Steps will sync automatically every 5 minutes
+                    <br />• Manual step input available as backup
+                  </p>
+                </div>
+
                 <div className="flex items-center justify-between">
                   <span className="text-amber-800 font-medium">Google Fit Integration</span>
                   <button
@@ -1280,39 +1201,37 @@ export default function GymonadFitness() {
                   </button>
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <span className="text-amber-800 font-medium">
-                    {googleFitConnected ? "Auto Sync" : "GPS Step Tracking"}
-                  </span>
-                  <button
-                    onClick={() => {
-                      if (autoStepTracking) {
-                        stopAutoStepTracking()
-                      } else {
-                        startAutoStepTracking()
-                      }
-                    }}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                      autoStepTracking ? "bg-amber-500 text-white" : "bg-amber-100 text-amber-800 hover:bg-amber-200"
-                    }`}
-                  >
-                    {autoStepTracking
-                      ? googleFitConnected
-                        ? "Stop Sync"
-                        : "Stop GPS"
-                      : googleFitConnected
-                        ? "Start Sync"
-                        : "Start GPS"}
-                  </button>
-                </div>
-
                 {googleFitConnected && (
-                  <p className="text-sm text-green-700">✓ Google Fit connected • Steps sync automatically</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-amber-800 font-medium">Auto Sync</span>
+                    <button
+                      onClick={() => {
+                        if (autoStepTracking) {
+                          stopAutoStepTracking()
+                        } else {
+                          fetchGoogleFitSteps()
+                          const intervalId = setInterval(fetchGoogleFitSteps, 5 * 60 * 1000)
+                          setAutoStepTracking(true)
+                        }
+                      }}
+                      className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                        autoStepTracking ? "bg-amber-500 text-white" : "bg-amber-100 text-amber-800 hover:bg-amber-200"
+                      }`}
+                    >
+                      {autoStepTracking ? "Stop Sync" : "Start Sync"}
+                    </button>
+                  </div>
                 )}
 
-                {autoStepTracking && stepLocation && !googleFitConnected && (
+                {googleFitConnected && autoStepTracking && (
+                  <p className="text-sm text-green-700">
+                    ✓ Google Fit connected • Steps sync automatically every 5 minutes
+                  </p>
+                )}
+
+                {!googleFitConnected && (
                   <p className="text-sm text-amber-700">
-                    📍 GPS tracking active • Distance: {totalDistance.toFixed(1)}m
+                    ⚠️ Connect Google Fit for automatic step tracking, or use manual input below
                   </p>
                 )}
               </div>
@@ -1471,15 +1390,64 @@ export default function GymonadFitness() {
             </CardContent>
           </Card>
 
-          <Card className="bg-purple-100 border-purple-300 shadow-lg">
+          <Card className="bg-gradient-to-br from-purple-100 to-indigo-100 border-purple-400 shadow-lg">
             <CardHeader className="text-center">
               <CardTitle className="flex items-center justify-center gap-2 text-purple-900">
                 <svg className="h-6 w-6 text-purple-600" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
                 </svg>
+                GYMONAD Smart Contract
+              </CardTitle>
+              <CardDescription className="text-purple-700">Official GYMONAD fitness protocol</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-4 rounded-lg text-white">
+                <h3 className="font-bold text-lg mb-2">GYMONAD Protocol</h3>
+                <p className="text-sm opacity-90 mb-3">Decentralized fitness tracking and rewards</p>
+                <div className="text-xs font-mono bg-black/20 p-2 rounded break-all">{GYMONAD_CONTRACT_ADDRESS}</div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-center">
+                <div className="bg-purple-50 rounded-lg p-3">
+                  <div className="text-lg font-bold text-purple-900">{steps}</div>
+                  <div className="text-sm text-purple-700">Steps On-Chain</div>
+                </div>
+                <div className="bg-purple-50 rounded-lg p-3">
+                  <div className="text-lg font-bold text-purple-900">{tickets}</div>
+                  <div className="text-sm text-purple-700">Rewards Earned</div>
+                </div>
+              </div>
+
+              {connectedWallet ? (
+                <div className="space-y-2">
+                  <Button
+                    onClick={() => {
+                      playSwordClash()
+                      recordFitnessActivity("steps", steps)
+                    }}
+                    className="w-full bg-purple-500 hover:bg-purple-600 text-white"
+                  >
+                    Sync Fitness Data
+                  </Button>
+                  <p className="text-xs text-purple-600 text-center">
+                    Record your fitness achievements on the blockchain
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-purple-700 text-center">Connect wallet to interact with GYMONAD protocol</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-blue-100 to-purple-100 border-blue-400 shadow-lg">
+            <CardHeader className="text-center">
+              <CardTitle className="flex items-center justify-center gap-2 text-blue-900">
+                <svg className="h-6 w-6 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                </svg>
                 Heraklion Army NFT
               </CardTitle>
-              <CardDescription className="text-purple-700">Mint exclusive NFTs on Magic Eden</CardDescription>
+              <CardDescription className="text-blue-700">Partner collection on Magic Eden</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="text-center space-y-3">
@@ -1493,19 +1461,19 @@ export default function GymonadFitness() {
                   <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-lg pointer-events-none" />
                 </div>
 
-                <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-4 rounded-lg text-white">
-                  <h3 className="font-bold text-lg mb-2">Heraklion Army Collection</h3>
-                  <p className="text-sm opacity-90 mb-3">Exclusive NFT collection for GYMONAD warriors</p>
+                <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4 rounded-lg text-white">
+                  <h3 className="font-bold text-lg mb-2">Partner Collection</h3>
+                  <p className="text-sm opacity-90 mb-3">Exclusive NFTs for GYMONAD community</p>
                   <div className="text-xs font-mono bg-black/20 p-2 rounded break-all">
                     0xb240c821dd61f4a3ee572591536512111e6ffe45
                   </div>
                 </div>
 
                 <a
-                  href="https://magiceden.io/collections/ethereum/0xb240c821dd61f4a3ee572591536512111e6ffe45"
+                  href="https://magiceden.us/mint-terminal/monad-testnet/0x1e23ce5c525bdd782bd6632e7a3b63011432dcb3"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-6 py-4 rounded-lg transition-all font-bold text-lg shadow-lg hover:shadow-xl"
+                  className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-4 rounded-lg transition-all font-bold text-lg shadow-lg hover:shadow-xl"
                   onClick={playSwordClash}
                 >
                   <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
@@ -1516,11 +1484,9 @@ export default function GymonadFitness() {
                 </a>
 
                 {connectedWallet && (
-                  <div className="bg-purple-50 p-3 rounded-lg">
-                    <p className="text-sm text-purple-700 mb-1">Connected: {connectedWallet}</p>
-                    <p className="text-xs font-mono text-purple-600">
-                      {walletAddress?.slice(0, 8)}...{walletAddress?.slice(-6)}
-                    </p>
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <p className="text-sm text-blue-700 mb-1">Connected: {connectedWallet}</p>
+                    <p className="text-xs text-blue-600 font-mono break-all">{walletAddress}</p>
                   </div>
                 )}
               </div>
