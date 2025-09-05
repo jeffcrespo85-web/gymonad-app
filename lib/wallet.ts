@@ -6,27 +6,45 @@ export interface WalletAdapter {
   isInstalled: () => boolean
 }
 
-export class PhantomWallet implements WalletAdapter {
-  name = "Phantom"
-  icon = "👻"
+const MONAD_TESTNET_CONFIG = {
+  chainId: "0x279F", // 10143 in hex (correct chain ID)
+  chainName: "Monad Testnet",
+  nativeCurrency: {
+    name: "Monad",
+    symbol: "MON",
+    decimals: 18,
+  },
+  rpcUrls: ["https://testnet-rpc.monad.xyz", "https://rpc.ankr.com/monad_testnet"],
+  blockExplorerUrls: ["https://testnet.monadexplorer.com"],
+}
 
-  isInstalled(): boolean {
-    return typeof window !== "undefined" && "solana" in window && window.solana?.isPhantom
-  }
-
-  async connect(): Promise<string> {
-    if (!this.isInstalled()) {
-      window.open("https://phantom.app/", "_blank")
-      throw new Error("Phantom wallet not installed")
-    }
-
-    const response = await window.solana.connect()
-    return response.publicKey.toString()
-  }
-
-  async disconnect(): Promise<void> {
-    if (this.isInstalled()) {
-      await window.solana.disconnect()
+async function switchToMonadTestnet(ethereum: any): Promise<void> {
+  try {
+    console.log("[v0] Attempting to switch to Monad testnet...")
+    await ethereum.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: MONAD_TESTNET_CONFIG.chainId }],
+    })
+    console.log("[v0] Successfully switched to Monad testnet")
+  } catch (switchError: any) {
+    console.log("[v0] Switch error:", switchError)
+    // This error code indicates that the chain has not been added to MetaMask
+    if (switchError.code === 4902) {
+      try {
+        console.log("[v0] Adding Monad testnet to wallet...")
+        await ethereum.request({
+          method: "wallet_addEthereumChain",
+          params: [MONAD_TESTNET_CONFIG],
+        })
+        console.log("[v0] Successfully added Monad testnet")
+      } catch (addError: any) {
+        console.log("[v0] Add error:", addError)
+        throw new Error(`Failed to add Monad testnet: ${addError.message || "Unknown error"}`)
+      }
+    } else if (switchError.code === 4001) {
+      throw new Error("User rejected the network switch request")
+    } else {
+      throw new Error(`Failed to switch to Monad testnet: ${switchError.message || "Unknown error"}`)
     }
   }
 }
@@ -45,6 +63,7 @@ export class MetaMaskWallet implements WalletAdapter {
       throw new Error("MetaMask not installed")
     }
 
+    await switchToMonadTestnet(window.ethereum)
     const accounts = await window.ethereum.request({ method: "eth_requestAccounts" })
     return accounts[0]
   }
@@ -110,23 +129,21 @@ export class InjectedWallet implements WalletAdapter {
   icon = "🌐"
 
   isInstalled(): boolean {
-    return typeof window !== "undefined" && ("ethereum" in window || "solana" in window || "keplr" in window)
+    return typeof window !== "undefined" && ("ethereum" in window || "keplr" in window)
   }
 
   async connect(): Promise<string> {
     if (window.ethereum) {
+      await switchToMonadTestnet(window.ethereum)
       const accounts = await window.ethereum.request({ method: "eth_requestAccounts" })
       return accounts[0]
-    } else if (window.solana) {
-      const response = await window.solana.connect()
-      return response.publicKey.toString()
     } else if (window.keplr) {
       await window.keplr.enable("cosmoshub-4")
       const offlineSigner = window.keplr.getOfflineSigner("cosmoshub-4")
       const accounts = await offlineSigner.getAccounts()
       return accounts[0].address
     }
-    throw new Error("No compatible wallet found")
+    throw new Error("No EVM-compatible wallet found")
   }
 
   async disconnect(): Promise<void> {
@@ -134,9 +151,35 @@ export class InjectedWallet implements WalletAdapter {
   }
 }
 
+export class PhantomEVMWallet implements WalletAdapter {
+  name = "Phantom"
+  icon = "👻"
+
+  isInstalled(): boolean {
+    return typeof window !== "undefined" && "phantom" in window && window.phantom?.ethereum
+  }
+
+  async connect(): Promise<string> {
+    if (!this.isInstalled()) {
+      window.open("https://phantom.app/", "_blank")
+      throw new Error("Phantom wallet not installed or EVM not supported")
+    }
+
+    await switchToMonadTestnet(window.phantom.ethereum)
+    const accounts = await window.phantom.ethereum.request({
+      method: "eth_requestAccounts",
+    })
+    return accounts[0]
+  }
+
+  async disconnect(): Promise<void> {
+    console.log("Phantom EVM disconnect requested")
+  }
+}
+
 export const walletAdapters = [
-  new PhantomWallet(),
   new MetaMaskWallet(),
+  new PhantomEVMWallet(),
   new KeplrWallet(),
   new HaHaWallet(),
   new InjectedWallet(),
@@ -144,9 +187,11 @@ export const walletAdapters = [
 
 declare global {
   interface Window {
-    solana?: any
     ethereum?: any
     keplr?: any
     haha?: any
+    phantom?: {
+      ethereum?: any
+    }
   }
 }
