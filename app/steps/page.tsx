@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Activity, Plus, RotateCcw, Loader2 } from "lucide-react"
 import { PageLayout } from "@/components/page-layout"
+import { audioController } from "@/lib/audio-controller"
 
 declare global {
   interface Window {
@@ -60,54 +61,14 @@ export default function StepsPage() {
     localStorage.setItem("gymonad_total_distance", totalDistance.toString())
   }, [totalDistance])
 
-  const playSwordClash = () => {
-    const audio = new Audio("https://hebbkx1anhila5yf.public.blob.vercel-storage.com/swordsclashing1sec-Gu3scJA0wJCm9za9kdnHLXcJdMvdkp.mp3")
-    audio.volume = 0.5
-    audio.play().catch(() => {})
-  }
-
   const playGuitarMilestone = () => {
-    const audio = new Audio("/gymonad-assetshttps://hebbkx1anhila5yf.public.blob.vercel-storage.com/guitarmp3-5NQgvR22O7TRWetiCDZvCln2LFfg6h.mp3")
-    audio.volume = 0.6
-    audio.play().catch(() => {})
-  }
-
-  const checkMilestones = (newSteps: number) => {
-    const milestones = [1000, 2500, 5000, 7500, 10000, 12500, 15000, 20000]
-    const percentageMilestones = [25, 50, 75, 100]
-
-    milestones.forEach((milestone) => {
-      const milestoneKey = `steps_${milestone}`
-      if (newSteps >= milestone && !achievedMilestones.has(milestoneKey)) {
-        setAchievedMilestones((prev) => new Set([...prev, milestoneKey]))
-        playGuitarMilestone()
-      }
-    })
-
-    percentageMilestones.forEach((percentage) => {
-      const milestoneKey = `percentage_${percentage}`
-      const targetSteps = (dailyGoal * percentage) / 100
-      if (newSteps >= targetSteps && !achievedMilestones.has(milestoneKey)) {
-        setAchievedMilestones((prev) => new Set([...prev, milestoneKey]))
-        playGuitarMilestone()
-      }
-    })
-
-    // Award tickets for every 2,000 steps
-    const ticketSteps = Math.floor(newSteps / 2000) * 2000
-    if (ticketSteps > lastTicketSteps) {
-      const newTickets = Math.floor((ticketSteps - lastTicketSteps) / 2000)
-      setTickets((prev) => prev + newTickets)
-      setLastTicketSteps(ticketSteps)
-      playGuitarMilestone()
-    }
+    audioController.playAchievementSound()
   }
 
   const addSteps = (amount: number) => {
     const newSteps = steps + amount
     setSteps(newSteps)
     checkMilestones(newSteps)
-    playSwordClash()
   }
 
   const resetStepsValue = () => {
@@ -116,11 +77,8 @@ export default function StepsPage() {
     setAchievedMilestones(new Set())
     setTotalDistance(0)
 
-    // Reset daily milestones but keep tickets
     const today = new Date().toDateString()
     localStorage.setItem("gymonad_last_reset", today)
-
-    playSwordClash()
   }
 
   const initializeGoogleFit = async () => {
@@ -174,6 +132,37 @@ export default function StepsPage() {
 
   const stopAutoStepTracking = () => {
     setAutoStepTracking(false)
+  }
+
+  const checkMilestones = (newSteps: number) => {
+    const milestones = [1000, 2500, 5000, 7500, 10000, 12500, 15000, 20000]
+    const percentageMilestones = [25, 50, 75, 100]
+
+    milestones.forEach((milestone) => {
+      const milestoneKey = `steps_${milestone}`
+      if (newSteps >= milestone && !achievedMilestones.has(milestoneKey)) {
+        setAchievedMilestones((prev) => new Set([...prev, milestoneKey]))
+        playGuitarMilestone()
+      }
+    })
+
+    percentageMilestones.forEach((percentage) => {
+      const milestoneKey = `percentage_${percentage}`
+      const targetSteps = (dailyGoal * percentage) / 100
+      if (newSteps >= targetSteps && !achievedMilestones.has(milestoneKey)) {
+        setAchievedMilestones((prev) => new Set([...prev, milestoneKey]))
+        playGuitarMilestone()
+      }
+    })
+
+    // Award tickets for every 2,000 steps
+    const ticketSteps = Math.floor(newSteps / 2000) * 2000
+    if (ticketSteps > lastTicketSteps) {
+      const newTickets = Math.floor((ticketSteps - lastTicketSteps) / 2000)
+      setTickets((prev) => prev + newTickets)
+      setLastTicketSteps(ticketSteps)
+      playGuitarMilestone()
+    }
   }
 
   const progressPercentage = Math.min((steps / dailyGoal) * 100, 100)
@@ -244,7 +233,6 @@ export default function StepsPage() {
                 <span className="text-blue-800 font-medium">Google Fit Status</span>
                 <button
                   onClick={() => {
-                    playSwordClash()
                     if (googleFitConnected) {
                       setGoogleFitConnected(false)
                       setAutoStepTracking(false)

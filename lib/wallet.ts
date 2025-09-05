@@ -63,9 +63,21 @@ export class MetaMaskWallet implements WalletAdapter {
       throw new Error("MetaMask not installed")
     }
 
-    await switchToMonadTestnet(window.ethereum)
-    const accounts = await window.ethereum.request({ method: "eth_requestAccounts" })
-    return accounts[0]
+    try {
+      const accounts = await window.ethereum.request({ method: "eth_requestAccounts" })
+      if (!accounts || accounts.length === 0) {
+        throw new Error("No accounts found")
+      }
+
+      // Now switch to Monad testnet after we have account access
+      await switchToMonadTestnet(window.ethereum)
+      return accounts[0]
+    } catch (error: any) {
+      if (error.code === 4001) {
+        throw new Error("User rejected the connection request")
+      }
+      throw error
+    }
   }
 
   async disconnect(): Promise<void> {
@@ -134,9 +146,21 @@ export class InjectedWallet implements WalletAdapter {
 
   async connect(): Promise<string> {
     if (window.ethereum) {
-      await switchToMonadTestnet(window.ethereum)
-      const accounts = await window.ethereum.request({ method: "eth_requestAccounts" })
-      return accounts[0]
+      try {
+        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" })
+        if (!accounts || accounts.length === 0) {
+          throw new Error("No accounts found")
+        }
+
+        // Now switch to Monad testnet after we have account access
+        await switchToMonadTestnet(window.ethereum)
+        return accounts[0]
+      } catch (error: any) {
+        if (error.code === 4001) {
+          throw new Error("User rejected the connection request")
+        }
+        throw error
+      }
     } else if (window.keplr) {
       await window.keplr.enable("cosmoshub-4")
       const offlineSigner = window.keplr.getOfflineSigner("cosmoshub-4")
@@ -165,11 +189,23 @@ export class PhantomEVMWallet implements WalletAdapter {
       throw new Error("Phantom wallet not installed or EVM not supported")
     }
 
-    await switchToMonadTestnet(window.phantom.ethereum)
-    const accounts = await window.phantom.ethereum.request({
-      method: "eth_requestAccounts",
-    })
-    return accounts[0]
+    try {
+      const accounts = await window.phantom.ethereum.request({
+        method: "eth_requestAccounts",
+      })
+      if (!accounts || accounts.length === 0) {
+        throw new Error("No accounts found")
+      }
+
+      // Now switch to Monad testnet after we have account access
+      await switchToMonadTestnet(window.phantom.ethereum)
+      return accounts[0]
+    } catch (error: any) {
+      if (error.code === 4001) {
+        throw new Error("User rejected the connection request")
+      }
+      throw error
+    }
   }
 
   async disconnect(): Promise<void> {

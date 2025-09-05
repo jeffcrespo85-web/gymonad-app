@@ -1,12 +1,12 @@
 import type React from "react"
-import { Geist, Cinzel } from "next/font/google"
+import { Inter, Cinzel } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
 import "./globals.css"
 
-const geist = Geist({
+const inter = Inter({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-geist",
+  variable: "--font-inter",
 })
 
 const cinzel = Cinzel({
@@ -41,7 +41,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${geist.variable} ${cinzel.variable} antialiased`}>
+    <html lang="en" className={`${inter.variable} ${cinzel.variable} antialiased`}>
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#8B5CF6" />

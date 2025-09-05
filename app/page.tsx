@@ -8,10 +8,10 @@ import { Badge } from "@/components/ui/badge"
 import { Activity, MapPin, Trophy, Wallet, ExternalLink, Download } from "lucide-react"
 import { PageLayout } from "@/components/page-layout"
 import Link from "next/link"
+import { audioController } from "@/lib/audio-controller"
 
 export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true)
-  const [musicStarted, setMusicStarted] = useState(false)
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   const [showInstallPrompt, setShowInstallPrompt] = useState(false)
 
@@ -28,6 +28,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     const loadDashboardData = () => {
+      audioController.startLoadingMusic()
+
       const savedSteps = localStorage.getItem("gymonad_steps")
       const savedTickets = localStorage.getItem("gymonad_tickets")
       const savedCheckedIn = localStorage.getItem("gymonad_checked_in_today")
@@ -49,6 +51,9 @@ export default function Dashboard() {
       if (savedLastWinner) setLastWinner(savedLastWinner)
 
       setIsLoading(false)
+      setTimeout(() => {
+        audioController.stopLoadingMusic()
+      }, 1000) // Small delay to let loading screen finish
     }
 
     loadDashboardData()
@@ -64,21 +69,6 @@ export default function Dashboard() {
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt)
     return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt)
   }, [])
-
-  useEffect(() => {
-    const startMusic = () => {
-      if (!musicStarted) {
-        const audio = new Audio("/gymonad-assetshttps://hebbkx1anhila5yf.public.blob.vercel-storage.com/gymonadtheme-Fuh0xpQtOA63uufs61fIneHPY136tL.mp3")
-        audio.loop = true
-        audio.volume = 0.4
-        audio.play().catch(() => {})
-        setMusicStarted(true)
-      }
-    }
-
-    const timer = setTimeout(startMusic, 2000)
-    return () => clearTimeout(timer)
-  }, [musicStarted])
 
   const handleInstallApp = async () => {
     if (deferredPrompt) {
