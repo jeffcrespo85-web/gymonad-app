@@ -4,7 +4,7 @@ class AudioController {
 
   startLoadingMusic() {
     if (!this.musicStarted && typeof window !== "undefined") {
-      this.loadingMusic = new Audio("https://hebbkx1anhila5yf.public.blob.vercel-storage.com/gymonadtheme-Fuh0xpQtOA63uufs61fIneHPY136tL.mp3")
+      this.loadingMusic = new Audio("/gymonad-assetshttps://hebbkx1anhila5yf.public.blob.vercel-storage.com/gymonadtheme-Fuh0xpQtOA63uufs61fIneHPY136tL.mp3")
       this.loadingMusic.loop = false // No longer loop since it's only for loading
       this.loadingMusic.volume = 0.2
       this.loadingMusic.play().catch(() => {})
