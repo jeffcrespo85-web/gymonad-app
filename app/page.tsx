@@ -203,7 +203,7 @@ export default function GymonadFitness() {
   }
 
   const playGuitarMilestone = () => {
-    const audio = new Audio("https://hebbkx1anhila5yf.public.blob.vercel-storage.com/guitarmp3-5NQgvR22O7TRWetiCDZvCln2LFfg6h.mp3")
+    const audio = new Audio("/yarnlhttps://hebbkx1anhila5yf.public.blob.vercel-storage.com/guitarmp3-5NQgvR22O7TRWetiCDZvCln2LFfg6h.mp3")
     audio.volume = 0.6
     audio.play().catch(() => {}) // Ignore errors if audio fails
   }
