@@ -29,7 +29,7 @@ export function Navigation() {
               className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
                 isActive
                   ? "text-yellow-400 bg-purple-600/20"
-                  : "text-purple-300 hover:text-yellow-300 hover:bg-purple-600/10"
+                  : "text-purple-200 hover:text-yellow-300 hover:bg-purple-600/10"
               }`}
             >
               <Icon className="h-5 w-5" />

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
-import { Activity, MapPin, Trophy, Wallet, ExternalLink, Download } from "lucide-react"
+import { Activity, MapPin, Trophy, Wallet, ExternalLink, Download, Volume2, VolumeX } from "lucide-react"
 import { PageLayout } from "@/components/page-layout"
 import Link from "next/link"
 import { audioController } from "@/lib/audio-controller"
@@ -14,6 +14,7 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true)
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   const [showInstallPrompt, setShowInstallPrompt] = useState(false)
+  const [isMuted, setIsMuted] = useState(false)
 
   const [steps, setSteps] = useState(0)
   const [dailyGoal] = useState(10000)
@@ -28,7 +29,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     const loadDashboardData = () => {
-      audioController.startLoadingMusic()
+      audioController.startBackgroundMusic()
+      setIsMuted(audioController.getMuteState())
 
       const savedSteps = localStorage.getItem("gymonad_steps")
       const savedTickets = localStorage.getItem("gymonad_tickets")
@@ -51,9 +53,6 @@ export default function Dashboard() {
       if (savedLastWinner) setLastWinner(savedLastWinner)
 
       setIsLoading(false)
-      setTimeout(() => {
-        audioController.stopLoadingMusic()
-      }, 1000) // Small delay to let loading screen finish
     }
 
     loadDashboardData()
@@ -79,6 +78,11 @@ export default function Dashboard() {
       }
       setDeferredPrompt(null)
     }
+  }
+
+  const toggleMute = () => {
+    const newMuteState = audioController.toggleMute()
+    setIsMuted(newMuteState)
   }
 
   const progressPercentage = Math.min((steps / dailyGoal) * 100, 100)
@@ -180,7 +184,19 @@ export default function Dashboard() {
           >
             GYMONAD
           </h1>
-          <p className="text-purple-300 text-lg mb-4">Track your fitness journey in the Monad ecosystem</p>
+          <p className="text-purple-200 text-lg mb-4">Track your fitness journey in the Monad ecosystem</p>
+
+          <div className="flex justify-center mb-4">
+            <Button
+              onClick={toggleMute}
+              variant="ghost"
+              size="sm"
+              className="text-purple-200 hover:text-yellow-400 hover:bg-purple-800/20 transition-colors"
+            >
+              {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+              <span className="ml-2 text-sm">{isMuted ? "Unmute" : "Mute"} Theme</span>
+            </Button>
+          </div>
 
           <div className="inline-flex items-center gap-2 bg-gradient-to-r from-yellow-500/20 to-amber-500/20 border border-yellow-500/30 rounded-lg px-4 py-2 mb-4">
             <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center text-black font-bold text-sm">
@@ -196,19 +212,19 @@ export default function Dashboard() {
           {/* Quick Stats Overview */}
           <Card className="bg-gradient-to-br from-purple-100 to-indigo-100 border-purple-400 shadow-lg">
             <CardHeader className="text-center">
-              <CardTitle className="text-purple-900">Today's Progress</CardTitle>
+              <CardTitle className="text-purple-800 font-bold">Today's Progress</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-4 text-center">
                 <div className="bg-purple-50 rounded-lg p-3">
                   <div className="text-2xl font-bold text-purple-900">{steps.toLocaleString()}</div>
-                  <div className="text-sm text-purple-700">Steps</div>
+                  <div className="text-sm text-purple-800">Steps</div>
                   <Progress value={progressPercentage} className="h-2 mt-2 bg-purple-200 [&>div]:bg-purple-500" />
                 </div>
                 <div className="bg-purple-50 rounded-lg p-3">
                   <div className="text-2xl font-bold text-purple-900">{checkedIn ? "✓" : "○"}</div>
-                  <div className="text-sm text-purple-700">Check-in</div>
-                  <div className="text-xs text-purple-600 mt-1">{checkedIn ? "Complete" : "Pending"}</div>
+                  <div className="text-sm text-purple-800">Check-in</div>
+                  <div className="text-xs text-purple-700 mt-1">{checkedIn ? "Complete" : "Pending"}</div>
                 </div>
               </div>
             </CardContent>

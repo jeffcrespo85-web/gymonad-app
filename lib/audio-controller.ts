@@ -1,26 +1,23 @@
 class AudioController {
-  private loadingMusic: HTMLAudioElement | null = null
+  private backgroundMusic: HTMLAudioElement | null = null
   private musicStarted = false
+  private isMuted = false
 
-  startLoadingMusic() {
+  startBackgroundMusic() {
     if (!this.musicStarted && typeof window !== "undefined") {
-      this.loadingMusic = new Audio("/gymonad-assetshttps://hebbkx1anhila5yf.public.blob.vercel-storage.com/gymonadtheme-Fuh0xpQtOA63uufs61fIneHPY136tL.mp3")
-      this.loadingMusic.loop = false // No longer loop since it's only for loading
-      this.loadingMusic.volume = 0.2
-      this.loadingMusic.play().catch(() => {})
+      this.backgroundMusic = new Audio("/gymonad-assetshttps://hebbkx1anhila5yf.public.blob.vercel-storage.com/gymonadtheme-Fuh0xpQtOA63uufs61fIneHPY136tL.mp3")
+      this.backgroundMusic.loop = true // Loop continuously
+      this.backgroundMusic.volume = this.isMuted ? 0 : 0.1 // Very low volume
+      this.backgroundMusic.play().catch(() => {})
       this.musicStarted = true
-
-      setTimeout(() => {
-        this.stopLoadingMusic()
-      }, 10000)
     }
   }
 
-  stopLoadingMusic() {
-    if (this.loadingMusic) {
-      this.loadingMusic.pause()
-      this.loadingMusic.currentTime = 0
-      this.loadingMusic = null
+  stopBackgroundMusic() {
+    if (this.backgroundMusic) {
+      this.backgroundMusic.pause()
+      this.backgroundMusic.currentTime = 0
+      this.backgroundMusic = null
       this.musicStarted = false
     }
   }
@@ -34,6 +31,18 @@ class AudioController {
     audio.play().catch(() => {
       if (callback) callback()
     })
+  }
+
+  toggleMute() {
+    this.isMuted = !this.isMuted
+    if (this.backgroundMusic) {
+      this.backgroundMusic.volume = this.isMuted ? 0 : 0.1
+    }
+    return this.isMuted
+  }
+
+  getMuteState() {
+    return this.isMuted
   }
 }
 

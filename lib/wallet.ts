@@ -20,31 +20,33 @@ const MONAD_TESTNET_CONFIG = {
 
 async function switchToMonadTestnet(ethereum: any): Promise<void> {
   try {
-    console.log("[v0] Attempting to switch to Monad testnet...")
+    if (!ethereum || !ethereum.request) {
+      throw new Error("Invalid Ethereum provider - cannot switch networks")
+    }
+
     await ethereum.request({
       method: "wallet_switchEthereumChain",
       params: [{ chainId: MONAD_TESTNET_CONFIG.chainId }],
     })
-    console.log("[v0] Successfully switched to Monad testnet")
   } catch (switchError: any) {
-    console.log("[v0] Switch error:", switchError)
     // This error code indicates that the chain has not been added to MetaMask
     if (switchError.code === 4902) {
       try {
-        console.log("[v0] Adding Monad testnet to wallet...")
         await ethereum.request({
           method: "wallet_addEthereumChain",
           params: [MONAD_TESTNET_CONFIG],
         })
-        console.log("[v0] Successfully added Monad testnet")
       } catch (addError: any) {
-        console.log("[v0] Add error:", addError)
-        throw new Error(`Failed to add Monad testnet: ${addError.message || "Unknown error"}`)
+        throw new Error(
+          `Failed to add Monad testnet: ${addError.message || addError.toString() || "Network configuration error"}`,
+        )
       }
     } else if (switchError.code === 4001) {
       throw new Error("User rejected the network switch request")
     } else {
-      throw new Error(`Failed to switch to Monad testnet: ${switchError.message || "Unknown error"}`)
+      throw new Error(
+        `Failed to switch to Monad testnet: ${switchError.message || switchError.toString() || "Network switch error"}`,
+      )
     }
   }
 }
@@ -58,15 +60,22 @@ export class MetaMaskWallet implements WalletAdapter {
   }
 
   async connect(): Promise<string> {
-    if (!this.isInstalled()) {
-      window.open("https://metamask.io/", "_blank")
-      throw new Error("MetaMask not installed")
-    }
-
     try {
+      if (!this.isInstalled()) {
+        throw new Error("MetaMask not installed")
+      }
+
+      if (!window.ethereum) {
+        throw new Error("Ethereum provider not found")
+      }
+
+      if (!window.ethereum.request) {
+        throw new Error("Invalid MetaMask provider - missing request method")
+      }
+
       const accounts = await window.ethereum.request({ method: "eth_requestAccounts" })
       if (!accounts || accounts.length === 0) {
-        throw new Error("No accounts found")
+        throw new Error("No accounts found in MetaMask")
       }
 
       // Now switch to Monad testnet after we have account access
@@ -76,12 +85,17 @@ export class MetaMaskWallet implements WalletAdapter {
       if (error.code === 4001) {
         throw new Error("User rejected the connection request")
       }
-      throw error
+      if (error.code === -32002) {
+        throw new Error("MetaMask is already processing a request. Please check your wallet.")
+      }
+      if (error.message) {
+        throw new Error(error.message)
+      }
+      throw new Error(`MetaMask connection failed: ${error.toString() || "Unknown error"}`)
     }
   }
 
   async disconnect(): Promise<void> {
-    // MetaMask doesn't have a programmatic disconnect
     console.log("MetaMask disconnect requested")
   }
 }
@@ -147,6 +161,10 @@ export class InjectedWallet implements WalletAdapter {
   async connect(): Promise<string> {
     if (window.ethereum) {
       try {
+        if (!window.ethereum.request) {
+          throw new Error("Invalid Ethereum provider - missing request method")
+        }
+
         const accounts = await window.ethereum.request({ method: "eth_requestAccounts" })
         if (!accounts || accounts.length === 0) {
           throw new Error("No accounts found")
@@ -159,15 +177,25 @@ export class InjectedWallet implements WalletAdapter {
         if (error.code === 4001) {
           throw new Error("User rejected the connection request")
         }
-        throw error
+        if (error.code === -32002) {
+          throw new Error("Wallet is already processing a request. Please check your wallet.")
+        }
+        if (error.message) {
+          throw new Error(error.message)
+        }
+        throw new Error(`Browser wallet connection failed: ${error.toString() || "Unknown error"}`)
       }
     } else if (window.keplr) {
-      await window.keplr.enable("cosmoshub-4")
-      const offlineSigner = window.keplr.getOfflineSigner("cosmoshub-4")
-      const accounts = await offlineSigner.getAccounts()
-      return accounts[0].address
+      try {
+        await window.keplr.enable("cosmoshub-4")
+        const offlineSigner = window.keplr.getOfflineSigner("cosmoshub-4")
+        const accounts = await offlineSigner.getAccounts()
+        return accounts[0].address
+      } catch (error: any) {
+        throw new Error(`Keplr connection failed: ${error.message || error.toString() || "Unknown error"}`)
+      }
     }
-    throw new Error("No EVM-compatible wallet found")
+    throw new Error("No compatible wallet found")
   }
 
   async disconnect(): Promise<void> {
@@ -184,17 +212,20 @@ export class PhantomEVMWallet implements WalletAdapter {
   }
 
   async connect(): Promise<string> {
-    if (!this.isInstalled()) {
-      window.open("https://phantom.app/", "_blank")
-      throw new Error("Phantom wallet not installed or EVM not supported")
-    }
-
     try {
+      if (!this.isInstalled()) {
+        throw new Error("Phantom wallet not installed or EVM not supported")
+      }
+
+      if (!window.phantom?.ethereum?.request) {
+        throw new Error("Phantom EVM provider not available - missing request method")
+      }
+
       const accounts = await window.phantom.ethereum.request({
         method: "eth_requestAccounts",
       })
       if (!accounts || accounts.length === 0) {
-        throw new Error("No accounts found")
+        throw new Error("No accounts found in Phantom")
       }
 
       // Now switch to Monad testnet after we have account access
@@ -204,7 +235,13 @@ export class PhantomEVMWallet implements WalletAdapter {
       if (error.code === 4001) {
         throw new Error("User rejected the connection request")
       }
-      throw error
+      if (error.code === -32002) {
+        throw new Error("Phantom is already processing a request. Please check your wallet.")
+      }
+      if (error.message) {
+        throw new Error(error.message)
+      }
+      throw new Error(`Phantom EVM connection failed: ${error.toString() || "Unknown error"}`)
     }
   }
 

@@ -50,9 +50,26 @@ export default function WalletPage() {
 
       localStorage.setItem("gymonad_connected_wallet", adapter.name)
       localStorage.setItem("gymonad_wallet_address", address)
-    } catch (error) {
-      console.error("Failed to connect wallet:", error)
-      alert("Failed to connect wallet. Please try again.")
+    } catch (error: any) {
+      console.error("Wallet connection error details:", {
+        name: adapter.name,
+        error: error,
+        message: error?.message,
+        code: error?.code,
+        toString: error?.toString?.(),
+      })
+
+      let errorMessage = "Unknown connection error"
+
+      if (error?.message) {
+        errorMessage = error.message
+      } else if (error?.toString && typeof error.toString === "function") {
+        errorMessage = error.toString()
+      } else if (typeof error === "string") {
+        errorMessage = error
+      }
+
+      alert(`Failed to connect wallet: ${errorMessage}`)
     } finally {
       setWalletConnecting(false)
     }
@@ -80,7 +97,7 @@ export default function WalletPage() {
   const getNetworkInfo = () => {
     return {
       name: "Monad Testnet",
-      chainId: "666",
+      chainId: "10143",
       rpcUrl: "https://testnet-rpc.monad.xyz",
       explorer: "https://testnet-explorer.monad.xyz",
     }
