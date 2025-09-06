@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
-import { Activity, Plus, RotateCcw, Loader2 } from "lucide-react"
+import { Activity, RotateCcw, Loader2, Zap } from "lucide-react"
 import { PageLayout } from "@/components/page-layout"
 import { audioController } from "@/lib/audio-controller"
 
@@ -26,6 +26,16 @@ export default function StepsPage() {
   const [googleFitLoading, setGoogleFitLoading] = useState(false)
   const [autoStepTracking, setAutoStepTracking] = useState(false)
   const [totalDistance, setTotalDistance] = useState(0)
+  const [googleFitConfigError, setGoogleFitConfigError] = useState<string | null>(null)
+
+  const [googleFitGoals, setGoogleFitGoals] = useState({
+    steps: { target: 10000, achieved: 0, completed: false },
+    activeMinutes: { target: 30, achieved: 0, completed: false },
+    calories: { target: 2000, achieved: 0, completed: false },
+    distance: { target: 8000, achieved: 0, completed: false }, // in meters
+  })
+  const [allGoalsCompleted, setAllGoalsCompleted] = useState(false)
+  const [dailyGoalsRewardClaimed, setDailyGoalsRewardClaimed] = useState(false)
 
   useEffect(() => {
     const savedSteps = localStorage.getItem("gymonad_steps")
@@ -33,12 +43,31 @@ export default function StepsPage() {
     const savedLastTicketSteps = localStorage.getItem("gymonad_last_ticket_steps")
     const savedMilestones = localStorage.getItem("gymonad_achieved_milestones")
     const savedDistance = localStorage.getItem("gymonad_total_distance")
+    const savedGoals = localStorage.getItem("gymonad_google_fit_goals")
+    const savedGoalsReward = localStorage.getItem("gymonad_daily_goals_reward")
+    const today = new Date().toDateString()
+    const savedDate = localStorage.getItem("gymonad_goals_date")
 
     if (savedSteps) setSteps(Number.parseInt(savedSteps))
     if (savedTickets) setTickets(Number.parseInt(savedTickets))
     if (savedLastTicketSteps) setLastTicketSteps(Number.parseInt(savedLastTicketSteps))
     if (savedMilestones) setAchievedMilestones(new Set(JSON.parse(savedMilestones)))
     if (savedDistance) setTotalDistance(Number.parseFloat(savedDistance))
+
+    // Reset goals if it's a new day
+    if (savedDate !== today) {
+      setGoogleFitGoals({
+        steps: { target: 10000, achieved: 0, completed: false },
+        activeMinutes: { target: 30, achieved: 0, completed: false },
+        calories: { target: 2000, achieved: 0, completed: false },
+        distance: { target: 8000, achieved: 0, completed: false },
+      })
+      setDailyGoalsRewardClaimed(false)
+      localStorage.setItem("gymonad_goals_date", today)
+    } else {
+      if (savedGoals) setGoogleFitGoals(JSON.parse(savedGoals))
+      if (savedGoalsReward) setDailyGoalsRewardClaimed(JSON.parse(savedGoalsReward))
+    }
   }, [])
 
   useEffect(() => {
@@ -61,6 +90,23 @@ export default function StepsPage() {
     localStorage.setItem("gymonad_total_distance", totalDistance.toString())
   }, [totalDistance])
 
+  useEffect(() => {
+    localStorage.setItem("gymonad_google_fit_goals", JSON.stringify(googleFitGoals))
+  }, [googleFitGoals])
+
+  useEffect(() => {
+    localStorage.setItem("gymonad_daily_goals_reward", JSON.stringify(dailyGoalsRewardClaimed))
+  }, [dailyGoalsRewardClaimed])
+
+  useEffect(() => {
+    const allCompleted = Object.values(googleFitGoals).every((goal) => goal.completed)
+    setAllGoalsCompleted(allCompleted)
+
+    if (allCompleted && !dailyGoalsRewardClaimed) {
+      triggerDailyGoalsReward()
+    }
+  }, [googleFitGoals, dailyGoalsRewardClaimed])
+
   const playGuitarMilestone = () => {
     audioController.playAchievementSound()
   }
@@ -76,14 +122,32 @@ export default function StepsPage() {
     setLastTicketSteps(0)
     setAchievedMilestones(new Set())
     setTotalDistance(0)
+    setGoogleFitGoals({
+      steps: { target: 10000, achieved: 0, completed: false },
+      activeMinutes: { target: 30, achieved: 0, completed: false },
+      calories: { target: 2000, achieved: 0, completed: false },
+      distance: { target: 8000, achieved: 0, completed: false },
+    })
+    setDailyGoalsRewardClaimed(false)
 
     const today = new Date().toDateString()
     localStorage.setItem("gymonad_last_reset", today)
+    localStorage.setItem("gymonad_goals_date", today)
   }
 
   const initializeGoogleFit = async () => {
     setGoogleFitLoading(true)
+    setGoogleFitConfigError(null)
+
     try {
+      const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID"
+
+      if (!clientId || clientId === "YOUR_GOOGLE_CLIENT_ID") {
+        throw new Error(
+          "Google Client ID not configured. Please set NEXT_PUBLIC_GOOGLE_CLIENT_ID environment variable.",
+        )
+      }
+
       await new Promise((resolve, reject) => {
         const script = document.createElement("script")
         script.src = "https://apis.google.com/js/api.js"
@@ -97,14 +161,26 @@ export default function StepsPage() {
       })
 
       await window.gapi.auth2.init({
-        client_id: "YOUR_GOOGLE_CLIENT_ID", // Replace with actual client ID
+        client_id: clientId,
       })
 
       setGoogleFitConnected(true)
       setGoogleFitLoading(false)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Google Fit initialization failed:", error)
       setGoogleFitLoading(false)
+
+      if (error.message?.includes("Google Client ID not configured")) {
+        setGoogleFitConfigError(
+          "Google Fit requires setup. Please configure your Google Client ID in project settings.",
+        )
+      } else if (error.error === "idpiframe_initialization_failed") {
+        setGoogleFitConfigError(
+          "Google Fit setup incomplete. Please register your domain in Google Console or deploy to a custom domain.",
+        )
+      } else {
+        setGoogleFitConfigError("Google Fit connection failed. Please check your internet connection and try again.")
+      }
     }
   }
 
@@ -120,13 +196,42 @@ export default function StepsPage() {
     if (!googleFitConnected) return
 
     try {
-      // This would integrate with Google Fit API
-      // For now, simulate step data
-      const simulatedSteps = Math.floor(Math.random() * 5000) + steps
-      setSteps(simulatedSteps)
-      checkMilestones(simulatedSteps)
+      const simulatedData = {
+        steps: Math.floor(Math.random() * 5000) + steps,
+        activeMinutes: Math.floor(Math.random() * 45),
+        calories: Math.floor(Math.random() * 1500) + 500,
+        distance: Math.floor(Math.random() * 6000) + 2000,
+      }
+
+      setSteps(simulatedData.steps)
+
+      // Update Google Fit goals
+      setGoogleFitGoals((prev) => ({
+        steps: {
+          ...prev.steps,
+          achieved: simulatedData.steps,
+          completed: simulatedData.steps >= prev.steps.target,
+        },
+        activeMinutes: {
+          ...prev.activeMinutes,
+          achieved: simulatedData.activeMinutes,
+          completed: simulatedData.activeMinutes >= prev.activeMinutes.target,
+        },
+        calories: {
+          ...prev.calories,
+          achieved: simulatedData.calories,
+          completed: simulatedData.calories >= prev.calories.target,
+        },
+        distance: {
+          ...prev.distance,
+          achieved: simulatedData.distance,
+          completed: simulatedData.distance >= prev.distance.target,
+        },
+      }))
+
+      checkMilestones(simulatedData.steps)
     } catch (error) {
-      console.error("Failed to fetch Google Fit steps:", error)
+      console.error("Failed to fetch Google Fit data:", error)
     }
   }
 
@@ -165,6 +270,25 @@ export default function StepsPage() {
     }
   }
 
+  const triggerDailyGoalsReward = () => {
+    // Trigger phone vibration
+    if (navigator.vibrate) {
+      navigator.vibrate([200, 100, 200, 100, 200])
+    }
+
+    // Play thunder sound effect
+    const thunderAudio = new Audio("/gymonad-assets/thunder.mp3")
+    thunderAudio.volume = 0.7
+    thunderAudio.play().catch(console.error)
+
+    // Award bonus ticket
+    setTickets((prev) => prev + 1)
+    setDailyGoalsRewardClaimed(true)
+
+    // Play achievement sound
+    audioController.playAchievementSound()
+  }
+
   const progressPercentage = Math.min((steps / dailyGoal) * 100, 100)
 
   return (
@@ -173,28 +297,41 @@ export default function StepsPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-2 font-serif text-yellow-500">Step Tracking</h1>
-          <p className="text-purple-300">Monitor your daily activity with Google Fit</p>
+          <p className="text-purple-300">Complete all Google Fit goals for bonus rewards</p>
         </div>
 
         <div className="grid gap-6 max-w-md mx-auto px-4 w-full">
-          {/* Main Step Counter */}
+          {allGoalsCompleted && (
+            <Card className="bg-gradient-to-br from-yellow-200 to-amber-200 border-yellow-500 shadow-xl">
+              <CardHeader className="text-center">
+                <CardTitle className="flex items-center justify-center gap-2 text-amber-900">
+                  <Zap className="h-6 w-6 text-yellow-600" />
+                  All Goals Completed!
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-center">
+                <div className="text-6xl mb-2">🏆</div>
+                <p className="text-amber-800 font-bold">
+                  {dailyGoalsRewardClaimed ? "Bonus ticket awarded!" : "Claiming bonus ticket..."}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
           <Card className="bg-purple-100 border-purple-300 shadow-lg">
             <CardHeader className="text-center">
               <CardTitle className="flex items-center justify-center gap-2 text-purple-900">
                 <Activity className="h-6 w-6 text-purple-600" />
-                Daily Steps
+                Google Fit Steps
               </CardTitle>
               <CardDescription className="text-purple-700">
-                Track your steps • Earn 1 ticket per 2,000 steps
+                Synced from Google Fit • Earn 1 ticket per 2,000 steps
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="text-center">
                 <div className="text-5xl font-bold text-purple-600 mb-2">{steps.toLocaleString()}</div>
                 <div className="text-lg text-purple-700">of {dailyGoal.toLocaleString()} steps</div>
-                {autoStepTracking && (
-                  <div className="text-sm text-purple-600 mt-2">Distance: {totalDistance.toFixed(0)}m tracked</div>
-                )}
               </div>
 
               <Progress value={progressPercentage} className="h-4 bg-purple-200 [&>div]:bg-purple-500" />
@@ -202,7 +339,7 @@ export default function StepsPage() {
               <div className="text-center">
                 {progressPercentage >= 100 ? (
                   <Badge variant="default" className="bg-green-500 text-white text-lg px-4 py-2">
-                    🎉 Daily Goal Achieved!
+                    🎉 Step Goal Achieved!
                   </Badge>
                 ) : (
                   <div className="text-purple-700">
@@ -214,23 +351,83 @@ export default function StepsPage() {
             </CardContent>
           </Card>
 
-          {/* Google Fit Integration */}
           <Card className="bg-blue-100 border-blue-300 shadow-lg">
             <CardHeader className="text-center">
-              <CardTitle className="text-blue-900">Google Fit Integration</CardTitle>
-              <CardDescription className="text-blue-700">Connect for automatic step tracking</CardDescription>
+              <CardTitle className="text-blue-900">Google Fit Daily Goals</CardTitle>
+              <CardDescription className="text-blue-700">
+                Complete all goals for bonus ticket + thunder reward
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-sm text-blue-800">
-                  📱 Connect Google Fit for accurate step tracking from your device sensors.
-                  <br />• Steps sync automatically every 5 minutes
-                  <br />• Manual step input available as backup
+              {Object.entries(googleFitGoals).map(([key, goal]) => (
+                <div key={key} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                  <div className="flex-1">
+                    <div className="font-medium text-blue-900 capitalize">
+                      {key === "activeMinutes" ? "Active Minutes" : key}
+                    </div>
+                    <div className="text-sm text-blue-700">
+                      {goal.achieved.toLocaleString()} / {goal.target.toLocaleString()}
+                      {key === "distance" ? "m" : key === "calories" ? " cal" : key === "activeMinutes" ? " min" : ""}
+                    </div>
+                  </div>
+                  <div
+                    className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                      goal.completed ? "bg-green-500 text-white" : "bg-gray-300 text-gray-600"
+                    }`}
+                  >
+                    {goal.completed ? "✓" : "○"}
+                  </div>
+                </div>
+              ))}
+
+              {!googleFitConnected && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <p className="text-sm text-amber-700 text-center">Connect Google Fit to track all daily goals</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Google Fit Integration */}
+          <Card className="bg-green-100 border-green-300 shadow-lg">
+            <CardHeader className="text-center">
+              <CardTitle className="text-green-900">Google Fit Connection</CardTitle>
+              <CardDescription className="text-green-700">
+                Required for step tracking and goal completion
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {googleFitConfigError && (
+                <div className="bg-amber-50 border border-amber-300 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="text-amber-600 text-xl">⚠️</div>
+                    <div>
+                      <h4 className="font-medium text-amber-800 mb-1">Setup Required</h4>
+                      <p className="text-sm text-amber-700 mb-3">{googleFitConfigError}</p>
+                      <div className="text-xs text-amber-600 space-y-1">
+                        <p>
+                          <strong>For developers:</strong>
+                        </p>
+                        <p>1. Get a Google Client ID from Google Console</p>
+                        <p>2. Add NEXT_PUBLIC_GOOGLE_CLIENT_ID to environment variables</p>
+                        <p>3. Register your domain as authorized origin</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <p className="text-sm text-green-800">
+                  📱 Google Fit provides comprehensive fitness data including steps, active minutes, calories, and
+                  distance.
+                  <br />• Data syncs automatically every 5 minutes
+                  <br />• Complete all daily goals for bonus rewards
                 </p>
               </div>
 
               <div className="flex items-center justify-between">
-                <span className="text-blue-800 font-medium">Google Fit Status</span>
+                <span className="text-green-800 font-medium">Connection Status</span>
                 <button
                   onClick={() => {
                     if (googleFitConnected) {
@@ -246,7 +443,7 @@ export default function StepsPage() {
                       ? "bg-green-500 text-white"
                       : googleFitLoading
                         ? "bg-gray-300 text-gray-600"
-                        : "bg-blue-500 text-white hover:bg-blue-600"
+                        : "bg-green-500 text-white hover:bg-green-600"
                   }`}
                 >
                   {googleFitLoading ? (
@@ -262,9 +459,23 @@ export default function StepsPage() {
                 </button>
               </div>
 
+              {!googleFitConnected && googleFitConfigError && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-sm text-blue-800 mb-2">
+                    <strong>Demo Mode:</strong> Google Fit not configured
+                  </p>
+                  <button
+                    onClick={fetchGoogleFitSteps}
+                    className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  >
+                    Simulate Fitness Data (Demo)
+                  </button>
+                </div>
+              )}
+
               {googleFitConnected && (
                 <div className="flex items-center justify-between">
-                  <span className="text-blue-800 font-medium">Auto Sync</span>
+                  <span className="text-green-800 font-medium">Auto Sync</span>
                   <button
                     onClick={() => {
                       if (autoStepTracking) {
@@ -276,10 +487,10 @@ export default function StepsPage() {
                       }
                     }}
                     className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                      autoStepTracking ? "bg-green-500 text-white" : "bg-blue-500 text-white hover:bg-blue-600"
+                      autoStepTracking ? "bg-green-600 text-white" : "bg-green-500 text-white hover:bg-green-600"
                     }`}
                   >
-                    {autoStepTracking ? "Stop Sync" : "Start Sync"}
+                    {autoStepTracking ? "✓ Syncing" : "Start Sync"}
                   </button>
                 </div>
               )}
@@ -287,47 +498,10 @@ export default function StepsPage() {
               {googleFitConnected && autoStepTracking && (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                   <p className="text-sm text-green-700">
-                    ✓ Google Fit connected • Steps sync automatically every 5 minutes
+                    ✓ Google Fit connected • All fitness data syncs automatically
                   </p>
                 </div>
               )}
-
-              {!googleFitConnected && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                  <p className="text-sm text-amber-700">
-                    ⚠️ Connect Google Fit for automatic step tracking, or use manual input below
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Manual Step Input */}
-          <Card className="bg-purple-100 border-purple-300 shadow-lg">
-            <CardHeader className="text-center">
-              <CardTitle className="text-purple-900">Manual Step Input</CardTitle>
-              <CardDescription className="text-purple-700">Add steps manually if needed</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-3 gap-3">
-                <Button onClick={() => addSteps(100)} className="bg-purple-500 hover:bg-purple-600 text-white">
-                  <Plus className="h-4 w-4 mr-1" />
-                  100
-                </Button>
-                <Button onClick={() => addSteps(500)} className="bg-purple-500 hover:bg-purple-600 text-white">
-                  <Plus className="h-4 w-4 mr-1" />
-                  500
-                </Button>
-                <Button onClick={() => addSteps(1000)} className="bg-purple-500 hover:bg-purple-600 text-white">
-                  <Plus className="h-4 w-4 mr-1" />
-                  1000
-                </Button>
-              </div>
-
-              <Button onClick={resetStepsValue} variant="destructive" className="w-full bg-red-600 hover:bg-red-700">
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Reset Daily Steps
-              </Button>
             </CardContent>
           </Card>
 
@@ -340,7 +514,7 @@ export default function StepsPage() {
                 </div>
                 Tickets Earned
               </CardTitle>
-              <CardDescription className="text-amber-700">Earn lottery entries through step milestones</CardDescription>
+              <CardDescription className="text-amber-700">Step milestones + daily goal completion</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="text-center">
@@ -352,42 +526,26 @@ export default function StepsPage() {
                 <p className="text-sm text-amber-800 text-center">
                   Next ticket at: <span className="font-bold">{Math.ceil((lastTicketSteps + 2000) / 1000) * 1000}</span>{" "}
                   steps
+                  <br />
+                  <span className="text-xs">+ 1 bonus ticket for completing all daily goals</span>
                 </p>
               </div>
 
               <div className="text-center text-xs text-amber-700">
                 <p>• 1 ticket per 2,000 steps</p>
+                <p>• 1 bonus ticket for all Google Fit goals</p>
                 <p>• Tickets used for weekly MONAD lottery</p>
               </div>
             </CardContent>
           </Card>
 
-          {/* Milestones */}
-          <Card className="bg-green-100 border-green-300 shadow-lg">
-            <CardHeader className="text-center">
-              <CardTitle className="text-green-900">Today's Milestones</CardTitle>
-              <CardDescription className="text-green-700">Achievement progress</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-3 text-center">
-                {[25, 50, 75, 100].map((percentage) => {
-                  const targetSteps = (dailyGoal * percentage) / 100
-                  const achieved = steps >= targetSteps
-                  return (
-                    <div
-                      key={percentage}
-                      className={`p-3 rounded-lg border-2 ${
-                        achieved
-                          ? "bg-green-200 border-green-400 text-green-900"
-                          : "bg-gray-100 border-gray-300 text-gray-600"
-                      }`}
-                    >
-                      <div className="text-lg font-bold">{percentage}%</div>
-                      <div className="text-xs">{achieved ? "✓ Complete" : `${targetSteps.toLocaleString()} steps`}</div>
-                    </div>
-                  )
-                })}
-              </div>
+          {/* Reset Button */}
+          <Card className="bg-red-100 border-red-300 shadow-lg">
+            <CardContent className="pt-6">
+              <Button onClick={resetStepsValue} variant="destructive" className="w-full bg-red-600 hover:bg-red-700">
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Reset Daily Progress
+              </Button>
             </CardContent>
           </Card>
         </div>

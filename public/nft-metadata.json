@@ -1,0 +1,66 @@
+{
+  "name": "Mondragon",
+  "description": "A muscular green-skinned warrior wearing a stitched purple mask and braids, illuminated by torchlight in a stone chamber. Elite member of the Heraklion Army collection.",
+  "image": "/images/nfts/mondragon.jpg",
+  "external_url": "https://your-gymonad-app.vercel.app",
+  "animation_url": "",
+  "attributes": [
+    {
+      "trait_type": "Skin Color",
+      "value": "Green"
+    },
+    {
+      "trait_type": "Mask",
+      "value": "Purple Stitched"
+    },
+    {
+      "trait_type": "Hair",
+      "value": "Braided Black"
+    },
+    {
+      "trait_type": "Emblem",
+      "value": "Blue Diamond"
+    },
+    {
+      "trait_type": "Setting",
+      "value": "Dungeon with Torchlight"
+    },
+    {
+      "trait_type": "Rarity",
+      "value": "Rare"
+    },
+    {
+      "trait_type": "Fitness Level",
+      "value": "Elite"
+    },
+    {
+      "trait_type": "Workout Type",
+      "value": "Strength Training"
+    },
+    {
+      "trait_type": "Power Level",
+      "value": 88,
+      "max_value": 100
+    },
+    {
+      "trait_type": "Steps Milestone",
+      "value": "15K+ Daily"
+    },
+    {
+      "trait_type": "Check-in Streak",
+      "value": "45 Days"
+    },
+    {
+      "trait_type": "Blockchain",
+      "value": "Monad"
+    }
+  ],
+  "properties": {
+    "category": "Fitness NFT",
+    "collection": "Heraklion Army",
+    "creator": "GYMONAD Protocol",
+    "royalty": 5.0,
+    "utility": ["Exclusive gym access", "Premium app features", "Lottery bonus entries", "Community governance rights"]
+  },
+  "compiler": "GYMONAD Fitness Protocol v1.0"
+}

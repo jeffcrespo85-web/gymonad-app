@@ -17,11 +17,6 @@ export function PageLayout({ children, showSkulls = true }: PageLayoutProps) {
     const triggerLightning = () => {
       setIsLightning(true)
 
-      // Play thunder sound
-      const thunder = new Audio("/gymonad-assets/thunder.mp3")
-      thunder.volume = 0.3
-      thunder.play().catch(() => {})
-
       setTimeout(() => setIsLightning(false), 200)
     }
 

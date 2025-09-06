@@ -1,0 +1,39 @@
+{
+  "collection": {
+    "name": "Heraklion Army",
+    "description": "The elite fitness warriors of the GYMONAD protocol. Each NFT represents a unique warrior with distinct fitness attributes and blockchain-verified achievements.",
+    "image": "https://your-domain.com/images/heraklion-collection-banner.png",
+    "banner_image": "https://your-domain.com/images/heraklion-banner.jpg",
+    "featured_image": "https://your-domain.com/images/heraklion-featured.png",
+    "external_link": "https://your-gymonad-app.vercel.app",
+    "seller_fee_basis_points": 500,
+    "fee_recipient": "0x476cfebb9b6ee7b1b29147529e805dbfd4b5b89e"
+  },
+  "contract": {
+    "address": "0x1e23ce5c525bdd782bd6632e7a3b63011432dcb3",
+    "blockchain": "Monad Testnet",
+    "chain_id": 10143,
+    "standard": "ERC-721"
+  },
+  "stats": {
+    "total_supply": 10000,
+    "minted": 2847,
+    "floor_price": "0.1 MON",
+    "volume_traded": "1,250 MON",
+    "holders": 1892
+  },
+  "traits": {
+    "rarity_levels": ["Common", "Uncommon", "Rare", "Epic", "Legendary"],
+    "fitness_levels": ["Beginner", "Intermediate", "Advanced", "Elite", "Champion"],
+    "workout_types": ["Cardio", "Strength Training", "HIIT", "Yoga", "CrossFit", "Martial Arts"],
+    "backgrounds": ["Purple Smoke", "Golden Lightning", "Dark Void", "Neon Grid", "Ancient Temple"],
+    "equipment": ["Basic Gear", "Pro Equipment", "Battle Gear", "Legendary Weapons", "Mythic Arsenal"]
+  },
+  "utility": {
+    "fitness_tracking": "Enhanced step counting and workout verification",
+    "lottery_system": "Bonus entries in weekly MONAD token draws",
+    "exclusive_access": "Premium gym partnerships and special events",
+    "governance": "Voting rights in GYMONAD protocol decisions",
+    "staking": "Earn rewards by staking NFTs in fitness challenges"
+  }
+}
