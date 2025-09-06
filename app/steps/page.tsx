@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Activity, RotateCcw, Loader2, Zap } from "lucide-react"
 import { PageLayout } from "@/components/page-layout"
 import { audioController } from "@/lib/audio-controller"
+import { env } from "@/env.mjs"
 
 declare global {
   interface Window {
@@ -140,7 +141,7 @@ export default function StepsPage() {
     setGoogleFitConfigError(null)
 
     try {
-      const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID"
+      const clientId = env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID"
 
       if (!clientId || clientId === "YOUR_GOOGLE_CLIENT_ID") {
         throw new Error(
