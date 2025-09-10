@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Wallet, Loader2, ExternalLink, Copy, CheckCircle } from "lucide-react"
 import { PageLayout } from "@/components/page-layout"
 import { walletAdapters, type WalletAdapter } from "@/lib/wallet"
+import { audioController } from "@/lib/audio-controller"
 
 export default function WalletPage() {
   const [connectedWallet, setConnectedWallet] = useState<string | null>(null)
@@ -26,15 +27,9 @@ export default function WalletPage() {
     if (savedActivities) setActivities(JSON.parse(savedActivities))
   }, [])
 
-  const playSwordClash = () => {
-    const audio = new Audio("https://hebbkx1anhila5yf.public.blob.vercel-storage.com/swordsclashing1sec-Gu3scJA0wJCm9za9kdnHLXcJdMvdkp.mp3")
-    audio.volume = 0.5
-    audio.play().catch(() => {})
-  }
-
   const connectWallet = async (adapter: WalletAdapter) => {
     setWalletConnecting(true)
-    playSwordClash()
+    audioController.playSwordClash()
 
     try {
       if (!adapter.isInstalled()) {
@@ -50,6 +45,8 @@ export default function WalletPage() {
 
       localStorage.setItem("gymonad_connected_wallet", adapter.name)
       localStorage.setItem("gymonad_wallet_address", address)
+
+      audioController.playAchievementSound()
     } catch (error: any) {
       console.error("Wallet connection error details:", {
         name: adapter.name,
@@ -83,7 +80,7 @@ export default function WalletPage() {
     localStorage.removeItem("gymonad_connected_wallet")
     localStorage.removeItem("gymonad_wallet_address")
 
-    playSwordClash()
+    audioController.playSwordClash()
   }
 
   const copyAddress = () => {
@@ -164,7 +161,7 @@ export default function WalletPage() {
                   {!showWalletOptions ? (
                     <Button
                       onClick={() => {
-                        playSwordClash()
+                        audioController.playSwordClash()
                         setShowWalletOptions(true)
                       }}
                       className="w-full bg-purple-500 hover:bg-purple-600 text-white"

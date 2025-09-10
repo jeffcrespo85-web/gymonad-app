@@ -144,109 +144,6 @@ export class MetaMaskWallet implements WalletAdapter {
   }
 }
 
-export class KeplrWallet implements WalletAdapter {
-  name = "Keplr"
-  icon = "🌌"
-
-  isInstalled(): boolean {
-    return typeof window !== "undefined" && "keplr" in window
-  }
-
-  async connect(): Promise<string> {
-    if (!this.isInstalled()) {
-      window.open("https://www.keplr.app/", "_blank")
-      throw new Error("Keplr wallet not installed")
-    }
-
-    await window.keplr.enable("cosmoshub-4")
-    const offlineSigner = window.keplr.getOfflineSigner("cosmoshub-4")
-    const accounts = await offlineSigner.getAccounts()
-    return accounts[0].address
-  }
-
-  async disconnect(): Promise<void> {
-    console.log("Keplr disconnect requested")
-  }
-}
-
-export class HaHaWallet implements WalletAdapter {
-  name = "HaHa"
-  icon = "😂"
-
-  isInstalled(): boolean {
-    return typeof window !== "undefined" && "haha" in window
-  }
-
-  async connect(): Promise<string> {
-    if (!this.isInstalled()) {
-      window.open("https://haha.me/", "_blank")
-      throw new Error("HaHa wallet not installed")
-    }
-
-    const response = await window.haha.connect()
-    return response.address
-  }
-
-  async disconnect(): Promise<void> {
-    if (this.isInstalled()) {
-      await window.haha.disconnect()
-    }
-  }
-}
-
-export class InjectedWallet implements WalletAdapter {
-  name = "Browser Wallet"
-  icon = "🌐"
-
-  isInstalled(): boolean {
-    return typeof window !== "undefined" && ("ethereum" in window || "keplr" in window)
-  }
-
-  async connect(): Promise<string> {
-    if (window.ethereum) {
-      try {
-        if (!window.ethereum.request) {
-          throw new Error("Invalid Ethereum provider - missing request method")
-        }
-
-        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" })
-        if (!accounts || accounts.length === 0) {
-          throw new Error("No accounts found")
-        }
-
-        // Now switch to Monad testnet after we have account access
-        await switchToMonadTestnet(window.ethereum)
-        return accounts[0]
-      } catch (error: any) {
-        if (error.code === 4001) {
-          throw new Error("User rejected the connection request")
-        }
-        if (error.code === -32002) {
-          throw new Error("Wallet is already processing a request. Please check your wallet.")
-        }
-        if (error.message) {
-          throw new Error(error.message)
-        }
-        throw new Error(`Browser wallet connection failed: ${error.toString() || "Unknown error"}`)
-      }
-    } else if (window.keplr) {
-      try {
-        await window.keplr.enable("cosmoshub-4")
-        const offlineSigner = window.keplr.getOfflineSigner("cosmoshub-4")
-        const accounts = await offlineSigner.getAccounts()
-        return accounts[0].address
-      } catch (error: any) {
-        throw new Error(`Keplr connection failed: ${error.message || error.toString() || "Unknown error"}`)
-      }
-    }
-    throw new Error("No compatible wallet found")
-  }
-
-  async disconnect(): Promise<void> {
-    console.log("Injected wallet disconnect requested")
-  }
-}
-
 export class PhantomEVMWallet implements WalletAdapter {
   name = "Phantom"
   icon = "👻"
@@ -325,19 +222,11 @@ export class PhantomEVMWallet implements WalletAdapter {
   }
 }
 
-export const walletAdapters = [
-  new MetaMaskWallet(),
-  new PhantomEVMWallet(),
-  new KeplrWallet(),
-  new HaHaWallet(),
-  new InjectedWallet(),
-]
+export const walletAdapters = [new PhantomEVMWallet(), new MetaMaskWallet()]
 
 declare global {
   interface Window {
     ethereum?: any
-    keplr?: any
-    haha?: any
     phantom?: {
       ethereum?: any
     }

@@ -6,7 +6,7 @@ class AudioController {
 
   startBackgroundMusic() {
     if (!this.musicStarted && typeof window !== "undefined") {
-      this.backgroundMusic = new Audio("https://hebbkx1anhila5yf.public.blob.vercel-storage.com/gymonadtheme-Fuh0xpQtOA63uufs61fIneHPY136tL.mp3")
+      this.backgroundMusic = new Audio("/gymonad-assetshttps://hebbkx1anhila5yf.public.blob.vercel-storage.com/gymonadtheme-Fuh0xpQtOA63uufs61fIneHPY136tL.mp3")
       this.backgroundMusic.loop = false
       this.backgroundMusic.volume = this.isMuted ? 0 : 0.1 // Very low volume
       this.backgroundMusic.play().catch(() => {})
@@ -14,7 +14,7 @@ class AudioController {
 
       this.musicTimer = setTimeout(() => {
         this.stopBackgroundMusic()
-      }, 30000) // 30 seconds
+      }, 40000) // 40 seconds
     }
   }
 
@@ -32,14 +32,31 @@ class AudioController {
   }
 
   playAchievementSound(callback?: () => void) {
-    const audio = new Audio("/gymonad-assetshttps://hebbkx1anhila5yf.public.blob.vercel-storage.com/guitarmp3-5NQgvR22O7TRWetiCDZvCln2LFfg6h.mp3")
-    audio.volume = 0.6
-    audio.addEventListener("ended", () => {
-      if (callback) callback()
-    })
-    audio.play().catch(() => {
-      if (callback) callback()
-    })
+    if (typeof window !== "undefined") {
+      const audio = new Audio("/gymonad-assetshttps://hebbkx1anhila5yf.public.blob.vercel-storage.com/guitarmp3-5NQgvR22O7TRWetiCDZvCln2LFfg6h.mp3")
+      audio.volume = 0.3
+      audio.play().catch(() => {})
+
+      if (callback) {
+        setTimeout(callback, 2000) // Wait for guitar to finish
+      }
+    } else if (callback) {
+      callback()
+    }
+  }
+
+  playSwordClash() {
+    if (typeof window !== "undefined") {
+      const audio = new Audio("/gymonad-assetshttps://hebbkx1anhila5yf.public.blob.vercel-storage.com/swordsclashing1sec-Gu3scJA0wJCm9za9kdnHLXcJdMvdkp.mp3")
+      audio.volume = 0.2
+      audio.play().catch(() => {})
+
+      // Stop after 1 second
+      setTimeout(() => {
+        audio.pause()
+        audio.currentTime = 0
+      }, 1000)
+    }
   }
 
   toggleMute() {

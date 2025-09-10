@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Activity, RotateCcw, Loader2, Zap } from "lucide-react"
 import { PageLayout } from "@/components/page-layout"
 import { audioController } from "@/lib/audio-controller"
-import { env } from "@/env.mjs"
+import { GymTokenSystem } from "@/lib/gym-token-system"
 
 declare global {
   interface Window {
@@ -38,6 +38,9 @@ export default function StepsPage() {
   const [allGoalsCompleted, setAllGoalsCompleted] = useState(false)
   const [dailyGoalsRewardClaimed, setDailyGoalsRewardClaimed] = useState(false)
 
+  const [gymTokens, setGymTokens] = useState(0)
+  const [connectedWallet, setConnectedWallet] = useState<string | null>(null)
+
   useEffect(() => {
     const savedSteps = localStorage.getItem("gymonad_steps")
     const savedTickets = localStorage.getItem("gymonad_tickets")
@@ -46,6 +49,7 @@ export default function StepsPage() {
     const savedDistance = localStorage.getItem("gymonad_total_distance")
     const savedGoals = localStorage.getItem("gymonad_google_fit_goals")
     const savedGoalsReward = localStorage.getItem("gymonad_daily_goals_reward")
+    const savedWallet = localStorage.getItem("gymonad_wallet_address")
     const today = new Date().toDateString()
     const savedDate = localStorage.getItem("gymonad_goals_date")
 
@@ -54,6 +58,11 @@ export default function StepsPage() {
     if (savedLastTicketSteps) setLastTicketSteps(Number.parseInt(savedLastTicketSteps))
     if (savedMilestones) setAchievedMilestones(new Set(JSON.parse(savedMilestones)))
     if (savedDistance) setTotalDistance(Number.parseFloat(savedDistance))
+
+    if (savedWallet) {
+      setConnectedWallet(savedWallet)
+      setGymTokens(GymTokenSystem.getTokenBalance(savedWallet))
+    }
 
     // Reset goals if it's a new day
     if (savedDate !== today) {
@@ -141,12 +150,14 @@ export default function StepsPage() {
     setGoogleFitConfigError(null)
 
     try {
-      const clientId = env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID"
+      const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
 
       if (!clientId || clientId === "YOUR_GOOGLE_CLIENT_ID") {
-        throw new Error(
-          "Google Client ID not configured. Please set NEXT_PUBLIC_GOOGLE_CLIENT_ID environment variable.",
+        setGoogleFitConfigError(
+          "Google Fit requires setup. Using demo mode for now. Configure NEXT_PUBLIC_GOOGLE_CLIENT_ID for full functionality.",
         )
+        setGoogleFitLoading(false)
+        return // Exit early to allow demo mode
       }
 
       await new Promise((resolve, reject) => {
@@ -171,16 +182,12 @@ export default function StepsPage() {
       console.error("Google Fit initialization failed:", error)
       setGoogleFitLoading(false)
 
-      if (error.message?.includes("Google Client ID not configured")) {
+      if (error.error === "idpiframe_initialization_failed") {
         setGoogleFitConfigError(
-          "Google Fit requires setup. Please configure your Google Client ID in project settings.",
-        )
-      } else if (error.error === "idpiframe_initialization_failed") {
-        setGoogleFitConfigError(
-          "Google Fit setup incomplete. Please register your domain in Google Console or deploy to a custom domain.",
+          "Google Fit setup incomplete. Please register your domain in Google Console or use demo mode.",
         )
       } else {
-        setGoogleFitConfigError("Google Fit connection failed. Please check your internet connection and try again.")
+        setGoogleFitConfigError("Google Fit connection failed. Using demo mode instead.")
       }
     }
   }
@@ -190,6 +197,7 @@ export default function StepsPage() {
       await initializeGoogleFit()
     } catch (error) {
       console.error("Failed to connect Google Fit:", error)
+      setGoogleFitConfigError("Google Fit connection failed. Demo mode available below.")
     }
   }
 
@@ -249,6 +257,11 @@ export default function StepsPage() {
       if (newSteps >= milestone && !achievedMilestones.has(milestoneKey)) {
         setAchievedMilestones((prev) => new Set([...prev, milestoneKey]))
         playGuitarMilestone()
+
+        if (connectedWallet) {
+          const newBalance = GymTokenSystem.addTokens(connectedWallet, 10)
+          setGymTokens(newBalance)
+        }
       }
     })
 
@@ -258,6 +271,11 @@ export default function StepsPage() {
       if (newSteps >= targetSteps && !achievedMilestones.has(milestoneKey)) {
         setAchievedMilestones((prev) => new Set([...prev, milestoneKey]))
         playGuitarMilestone()
+
+        if (connectedWallet) {
+          const newBalance = GymTokenSystem.addTokens(connectedWallet, 10)
+          setGymTokens(newBalance)
+        }
       }
     })
 
@@ -268,6 +286,12 @@ export default function StepsPage() {
       setTickets((prev) => prev + newTickets)
       setLastTicketSteps(ticketSteps)
       playGuitarMilestone()
+
+      if (connectedWallet) {
+        const tokensToAward = newTickets * 10
+        const newBalance = GymTokenSystem.addTokens(connectedWallet, tokensToAward)
+        setGymTokens(newBalance)
+      }
     }
   }
 
@@ -288,6 +312,11 @@ export default function StepsPage() {
 
     // Play achievement sound
     audioController.playAchievementSound()
+
+    if (connectedWallet) {
+      const newBalance = GymTokenSystem.addTokens(connectedWallet, 10)
+      setGymTokens(newBalance)
+    }
   }
 
   const progressPercentage = Math.min((steps / dailyGoal) * 100, 100)
@@ -302,6 +331,34 @@ export default function StepsPage() {
         </div>
 
         <div className="grid gap-6 max-w-md mx-auto px-4 w-full">
+          {connectedWallet && (
+            <Card className="bg-gradient-to-br from-green-100 to-emerald-100 border-green-400 shadow-lg">
+              <CardHeader className="text-center">
+                <CardTitle className="flex items-center justify-center gap-2 text-green-900">
+                  <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white font-bold">
+                    $
+                  </div>
+                  $GYM Token Balance
+                </CardTitle>
+                <CardDescription className="text-green-700">Earn 10 $GYM per milestone achieved</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="text-center">
+                  <div className="text-5xl font-bold text-green-600 mb-2">{gymTokens}</div>
+                  <div className="text-lg text-green-700">$GYM Tokens</div>
+                </div>
+
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <p className="text-sm text-green-800 text-center">
+                    Rank: #{GymTokenSystem.getUserRank(connectedWallet) || "Unranked"}
+                    <br />
+                    <span className="text-xs">Check leaderboard in Lottery tab</span>
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {allGoalsCompleted && (
             <Card className="bg-gradient-to-br from-yellow-200 to-amber-200 border-yellow-500 shadow-xl">
               <CardHeader className="text-center">
@@ -403,11 +460,11 @@ export default function StepsPage() {
                   <div className="flex items-start gap-3">
                     <div className="text-amber-600 text-xl">⚠️</div>
                     <div>
-                      <h4 className="font-medium text-amber-800 mb-1">Setup Required</h4>
+                      <h4 className="font-medium text-amber-800 mb-1">Demo Mode Active</h4>
                       <p className="text-sm text-amber-700 mb-3">{googleFitConfigError}</p>
                       <div className="text-xs text-amber-600 space-y-1">
                         <p>
-                          <strong>For developers:</strong>
+                          <strong>To enable full Google Fit integration:</strong>
                         </p>
                         <p>1. Get a Google Client ID from Google Console</p>
                         <p>2. Add NEXT_PUBLIC_GOOGLE_CLIENT_ID to environment variables</p>
@@ -460,10 +517,11 @@ export default function StepsPage() {
                 </button>
               </div>
 
-              {!googleFitConnected && googleFitConfigError && (
+              {!googleFitConnected && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                   <p className="text-sm text-blue-800 mb-2">
-                    <strong>Demo Mode:</strong> Google Fit not configured
+                    <strong>Demo Mode:</strong>{" "}
+                    {googleFitConfigError ? "Google Fit not configured" : "Try demo functionality"}
                   </p>
                   <button
                     onClick={fetchGoogleFitSteps}

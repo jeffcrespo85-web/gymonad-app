@@ -52,7 +52,9 @@ export default function Dashboard() {
       if (savedLotteryEntries) setLotteryEntries(Number.parseInt(savedLotteryEntries))
       if (savedLastWinner) setLastWinner(savedLastWinner)
 
-      setIsLoading(false)
+      setTimeout(() => {
+        setIsLoading(false)
+      }, 8000) // 8 seconds loading screen
     }
 
     loadDashboardData()

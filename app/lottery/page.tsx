@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Trophy, Clock, Users, Gift, Dice1 } from "lucide-react"
 import { PageLayout } from "@/components/page-layout"
+import { GymTokenSystem, type GymTokenUser } from "@/lib/gym-token-system"
 
 export default function LotteryPage() {
   const [tickets, setTickets] = useState(0)
@@ -15,6 +16,8 @@ export default function LotteryPage() {
   const [lotteryHistory, setLotteryHistory] = useState<Array<{ winner: string; date: string; tickets: number }>>([])
   const [connectedWallet, setConnectedWallet] = useState<string | null>(null)
   const [walletAddress, setWalletAddress] = useState<string | null>(null)
+  const [leaderboard, setLeaderboard] = useState<GymTokenUser[]>([])
+  const [showLeaderboard, setShowLeaderboard] = useState(false)
 
   useEffect(() => {
     const savedTickets = localStorage.getItem("gymonad_tickets")
@@ -42,6 +45,8 @@ export default function LotteryPage() {
     }
 
     setNextDrawDate(nextSunday)
+
+    setLeaderboard(GymTokenSystem.getLeaderboard())
   }, [])
 
   useEffect(() => {
@@ -59,7 +64,7 @@ export default function LotteryPage() {
   }, [lotteryHistory])
 
   const playSwordClash = () => {
-    const audio = new Audio("https://hebbkx1anhila5yf.public.blob.vercel-storage.com/swordsclashing1sec-Gu3scJA0wJCm9za9kdnHLXcJdMvdkp.mp3")
+    const audio = new Audio("/gymonad-assetshttps://hebbkx1anhila5yf.public.blob.vercel-storage.com/swordsclashing1sec-Gu3scJA0wJCm9za9kdnHLXcJdMvdkp.mp3")
     audio.volume = 0.5
     audio.play().catch(() => {})
   }
@@ -138,6 +143,81 @@ export default function LotteryPage() {
         </div>
 
         <div className="grid gap-6 max-w-md mx-auto px-4 w-full">
+          {/* Leaderboard Toggle Button */}
+          <Card className="bg-gradient-to-br from-green-100 to-emerald-100 border-green-400 shadow-lg">
+            <CardHeader className="text-center">
+              <CardTitle className="flex items-center justify-center gap-2 text-green-900">
+                <Trophy className="h-6 w-6 text-green-600" />
+                $GYM Token Leaderboard
+              </CardTitle>
+              <CardDescription className="text-green-700">Top fitness achievers earning $GYM tokens</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                onClick={() => {
+                  setShowLeaderboard(!showLeaderboard)
+                  setLeaderboard(GymTokenSystem.getLeaderboard())
+                  playSwordClash()
+                }}
+                className="w-full bg-green-500 hover:bg-green-600 text-white"
+              >
+                {showLeaderboard ? "Hide Leaderboard" : "Show Leaderboard"}
+              </Button>
+
+              {showLeaderboard && (
+                <div className="mt-4 space-y-3">
+                  {leaderboard.length === 0 ? (
+                    <div className="text-center text-green-700 py-4">
+                      <p>No users on leaderboard yet</p>
+                      <p className="text-sm">Complete fitness milestones to earn $GYM tokens!</p>
+                    </div>
+                  ) : (
+                    leaderboard.slice(0, 10).map((user, index) => (
+                      <div key={user.address} className="bg-green-50 rounded-lg p-3 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                              index === 0
+                                ? "bg-yellow-500 text-white"
+                                : index === 1
+                                  ? "bg-gray-400 text-white"
+                                  : index === 2
+                                    ? "bg-amber-600 text-white"
+                                    : "bg-green-200 text-green-800"
+                            }`}
+                          >
+                            {index + 1}
+                          </div>
+                          <div>
+                            <div className="font-mono text-sm text-green-900">
+                              {user.address.slice(0, 6)}...{user.address.slice(-4)}
+                            </div>
+                            <div className="text-xs text-green-600">{user.milestonesAchieved} milestones</div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-bold text-green-900">{user.tokens} $GYM</div>
+                          <div className="text-xs text-green-600">{new Date(user.lastActive).toLocaleDateString()}</div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+
+                  {leaderboard.length > 0 && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                      <p className="text-sm text-green-800">
+                        <strong>How to earn $GYM tokens:</strong>
+                        <br />• 10 $GYM per step milestone (1K, 2.5K, 5K, etc.)
+                        <br />• 10 $GYM per 2,000 steps taken
+                        <br />• 10 $GYM for completing all daily Google Fit goals
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Next Draw Countdown */}
           <Card className="bg-gradient-to-br from-yellow-100 to-amber-100 border-yellow-400 shadow-lg">
             <CardHeader className="text-center">

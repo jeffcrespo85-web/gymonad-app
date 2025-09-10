@@ -3,173 +3,241 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { CheckCircle, Calendar, MapPin, Loader2, Navigation } from "lucide-react"
+import { Progress } from "@/components/ui/progress"
+import { Activity, RotateCcw, Loader2, Zap, Target, TrendingUp } from "lucide-react"
 import { PageLayout } from "@/components/page-layout"
-import { getCurrentLocation, calculateDistance, type Location } from "@/lib/location"
-import { createClient } from "@/lib/supabase/client"
+import { audioController } from "@/lib/audio-controller"
+
+declare global {
+  interface Window {
+    gapi?: any
+  }
+}
 
 export default function WorkoutPage() {
-  const [workoutSpot, setWorkoutSpot] = useState<(Location & { name: string }) | null>(null)
-  const [userLocation, setUserLocation] = useState<Location | null>(null)
-  const [locationLoading, setLocationLoading] = useState(false)
-  const [locationError, setLocationError] = useState<string | null>(null)
-  const [checkingIn, setCheckingIn] = useState(false)
-  const [lastSpotChange, setLastSpotChange] = useState<string | null>(null)
-  const [settingSpot, setSettingSpot] = useState(false)
-  const [checkedIn, setCheckedIn] = useState(false)
-  const [lastCheckIn, setLastCheckIn] = useState<string | null>(null)
   const [tickets, setTickets] = useState(0)
-  const [connectedWallet, setConnectedWallet] = useState<string | null>(null)
+  const [googleFitConnected, setGoogleFitConnected] = useState(false)
+  const [googleFitLoading, setGoogleFitLoading] = useState(false)
+  const [googleFitConfigError, setGoogleFitConfigError] = useState<string | null>(null)
+
+  const [googleFitGoals, setGoogleFitGoals] = useState({
+    steps: { target: 10000, achieved: 0, completed: false },
+    activeMinutes: { target: 30, achieved: 0, completed: false },
+    calories: { target: 2000, achieved: 0, completed: false },
+    distance: { target: 8000, achieved: 0, completed: false }, // in meters
+    heartPoints: { target: 150, achieved: 0, completed: false }, // weekly target
+    workouts: { target: 3, achieved: 0, completed: false }, // weekly workouts
+  })
+
+  const [weeklyGoalsCompleted, setWeeklyGoalsCompleted] = useState(false)
+  const [weeklyRewardClaimed, setWeeklyRewardClaimed] = useState(false)
+  const [achievementStreak, setAchievementStreak] = useState(0)
+  const [lastAchievementDate, setLastAchievementDate] = useState<string | null>(null)
 
   useEffect(() => {
-    const savedWorkoutSpot = localStorage.getItem("gymonad_workout_spot")
-    const savedLastSpotChange = localStorage.getItem("gymonad_last_spot_change")
-    const savedCheckedIn = localStorage.getItem("gymonad_checked_in_today")
-    const savedLastCheckIn = localStorage.getItem("gymonad_last_checkin")
     const savedTickets = localStorage.getItem("gymonad_tickets")
-    const savedWallet = localStorage.getItem("gymonad_connected_wallet")
+    const savedGoals = localStorage.getItem("gymonad_workout_goals")
+    const savedWeeklyReward = localStorage.getItem("gymonad_weekly_reward")
+    const savedStreak = localStorage.getItem("gymonad_achievement_streak")
+    const savedLastAchievement = localStorage.getItem("gymonad_last_achievement")
 
-    if (savedWorkoutSpot) setWorkoutSpot(JSON.parse(savedWorkoutSpot))
-    if (savedLastSpotChange) setLastSpotChange(savedLastSpotChange)
-    if (savedCheckedIn) setCheckedIn(savedCheckedIn === "true")
-    if (savedLastCheckIn) setLastCheckIn(savedLastCheckIn)
+    const currentWeek = getWeekKey()
+    const savedWeek = localStorage.getItem("gymonad_goals_week")
+
     if (savedTickets) setTickets(Number.parseInt(savedTickets))
-    if (savedWallet) setConnectedWallet(savedWallet)
+    if (savedStreak) setAchievementStreak(Number.parseInt(savedStreak))
+    if (savedLastAchievement) setLastAchievementDate(savedLastAchievement)
+
+    // Reset weekly goals if it's a new week
+    if (savedWeek !== currentWeek) {
+      setGoogleFitGoals({
+        steps: { target: 70000, achieved: 0, completed: false }, // weekly target
+        activeMinutes: { target: 210, achieved: 0, completed: false }, // weekly target
+        calories: { target: 14000, achieved: 0, completed: false }, // weekly target
+        distance: { target: 56000, achieved: 0, completed: false }, // weekly target in meters
+        heartPoints: { target: 150, achieved: 0, completed: false },
+        workouts: { target: 3, achieved: 0, completed: false },
+      })
+      setWeeklyRewardClaimed(false)
+      localStorage.setItem("gymonad_goals_week", currentWeek)
+    } else {
+      if (savedGoals) setGoogleFitGoals(JSON.parse(savedGoals))
+      if (savedWeeklyReward) setWeeklyRewardClaimed(JSON.parse(savedWeeklyReward))
+    }
   }, [])
-
-  useEffect(() => {
-    if (workoutSpot) {
-      localStorage.setItem("gymonad_workout_spot", JSON.stringify(workoutSpot))
-    }
-  }, [workoutSpot])
-
-  useEffect(() => {
-    if (lastSpotChange) {
-      localStorage.setItem("gymonad_last_spot_change", lastSpotChange)
-    }
-  }, [lastSpotChange])
-
-  useEffect(() => {
-    localStorage.setItem("gymonad_checked_in_today", checkedIn.toString())
-  }, [checkedIn])
-
-  useEffect(() => {
-    if (lastCheckIn) {
-      localStorage.setItem("gymonad_last_checkin", lastCheckIn)
-    }
-  }, [lastCheckIn])
 
   useEffect(() => {
     localStorage.setItem("gymonad_tickets", tickets.toString())
   }, [tickets])
 
-  const playSwordClash = () => {
-    const audio = new Audio("https://hebbkx1anhila5yf.public.blob.vercel-storage.com/swordsclashing1sec-Gu3scJA0wJCm9za9kdnHLXcJdMvdkp.mp3")
-    audio.volume = 0.5
-    audio.play().catch(() => {})
+  useEffect(() => {
+    localStorage.setItem("gymonad_workout_goals", JSON.stringify(googleFitGoals))
+  }, [googleFitGoals])
+
+  useEffect(() => {
+    localStorage.setItem("gymonad_weekly_reward", JSON.stringify(weeklyRewardClaimed))
+  }, [weeklyRewardClaimed])
+
+  useEffect(() => {
+    localStorage.setItem("gymonad_achievement_streak", achievementStreak.toString())
+  }, [achievementStreak])
+
+  useEffect(() => {
+    if (lastAchievementDate) {
+      localStorage.setItem("gymonad_last_achievement", lastAchievementDate)
+    }
+  }, [lastAchievementDate])
+
+  useEffect(() => {
+    const allCompleted = Object.values(googleFitGoals).every((goal) => goal.completed)
+    setWeeklyGoalsCompleted(allCompleted)
+
+    if (allCompleted && !weeklyRewardClaimed) {
+      triggerWeeklyGoalsReward()
+    }
+  }, [googleFitGoals, weeklyRewardClaimed])
+
+  const getWeekKey = () => {
+    const now = new Date()
+    const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()))
+    return startOfWeek.toISOString().split("T")[0]
   }
 
-  const playGuitarMilestone = () => {
-    const audio = new Audio("/gymonad-assetshttps://hebbkx1anhila5yf.public.blob.vercel-storage.com/guitarmp3-5NQgvR22O7TRWetiCDZvCln2LFfg6h.mp3")
-    audio.volume = 0.6
-    audio.play().catch(() => {})
-  }
-
-  const setWorkoutSpotLocation = async () => {
-    setLocationLoading(true)
-    setLocationError(null)
+  const initializeGoogleFit = async () => {
+    setGoogleFitLoading(true)
+    setGoogleFitConfigError(null)
 
     try {
-      const location = await getCurrentLocation()
-      setUserLocation(location)
-      setSettingSpot(true)
-      setLocationLoading(false)
-    } catch (error) {
-      setLocationError(error instanceof Error ? error.message : "Failed to get location")
-      setLocationLoading(false)
-    }
-  }
+      const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
 
-  const confirmWorkoutSpot = (name: string) => {
-    if (userLocation) {
-      const newSpot = { ...userLocation, name }
-      setWorkoutSpot(newSpot)
-      setLastSpotChange(new Date().toISOString())
-      setSettingSpot(false)
-      setUserLocation(null)
-      playSwordClash()
-    }
-  }
-
-  const getLocationForCheckIn = async () => {
-    setLocationLoading(true)
-    setLocationError(null)
-
-    try {
-      const location = await getCurrentLocation()
-      setUserLocation(location)
-      setLocationLoading(false)
-    } catch (error) {
-      setLocationError(error instanceof Error ? error.message : "Failed to get location")
-      setLocationLoading(false)
-    }
-  }
-
-  const handleWorkoutCheckIn = async () => {
-    if (!workoutSpot || !userLocation) return
-
-    const distance = calculateDistance(userLocation, workoutSpot)
-    if (distance > 100) return
-
-    setCheckingIn(true)
-
-    try {
-      const supabase = createClient()
-      const checkInData = {
-        location: userLocation,
-        spot_name: workoutSpot.name,
-        wallet_address: connectedWallet,
-        distance_meters: Math.round(distance),
-        verified: true,
-        created_at: new Date().toISOString(),
+      if (!clientId || clientId === "YOUR_GOOGLE_CLIENT_ID") {
+        setGoogleFitConfigError(
+          "Google Fit requires setup. Using demo mode for now. Configure NEXT_PUBLIC_GOOGLE_CLIENT_ID for full functionality.",
+        )
+        setGoogleFitLoading(false)
+        return
       }
 
-      const { error } = await supabase.from("checkins").insert([checkInData])
+      await new Promise((resolve, reject) => {
+        const script = document.createElement("script")
+        script.src = "https://apis.google.com/js/api.js"
+        script.onload = resolve
+        script.onerror = reject
+        document.head.appendChild(script)
+      })
 
-      if (error) {
-        console.log("Database check-in failed, using local storage:", error.message)
-      }
+      await new Promise((resolve) => {
+        window.gapi.load("auth2", resolve)
+      })
 
-      setCheckedIn(true)
-      setLastCheckIn(new Date().toLocaleString())
-      setTickets((prev) => prev + 1)
-      setUserLocation(null)
-      playGuitarMilestone()
-    } catch (error) {
-      console.error("Check-in error:", error)
-      setCheckedIn(true)
-      setLastCheckIn(new Date().toLocaleString())
-      setTickets((prev) => prev + 1)
-      setUserLocation(null)
-      playGuitarMilestone()
-    } finally {
-      setCheckingIn(false)
+      await window.gapi.auth2.init({
+        client_id: clientId,
+      })
+
+      setGoogleFitConnected(true)
+      setGoogleFitLoading(false)
+    } catch (error: any) {
+      console.error("Google Fit initialization failed:", error)
+      setGoogleFitLoading(false)
+      setGoogleFitConfigError("Google Fit connection failed. Using demo mode instead.")
     }
   }
 
-  const canChangeSpot = () => {
-    if (!lastSpotChange) return true
-    const lastChange = new Date(lastSpotChange)
-    const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-    return lastChange <= monthAgo
+  const connectGoogleFit = async () => {
+    try {
+      await initializeGoogleFit()
+    } catch (error) {
+      console.error("Failed to connect Google Fit:", error)
+      setGoogleFitConfigError("Google Fit connection failed. Demo mode available below.")
+    }
   }
 
-  const getNextChangeDate = () => {
-    if (!lastSpotChange) return null
-    const lastChange = new Date(lastSpotChange)
-    const nextChange = new Date(lastChange.getTime() + 30 * 24 * 60 * 60 * 1000)
-    return nextChange
+  const fetchGoogleFitAchievements = async () => {
+    try {
+      const simulatedWeeklyData = {
+        steps: Math.floor(Math.random() * 30000) + 40000,
+        activeMinutes: Math.floor(Math.random() * 100) + 150,
+        calories: Math.floor(Math.random() * 5000) + 10000,
+        distance: Math.floor(Math.random() * 20000) + 35000,
+        heartPoints: Math.floor(Math.random() * 50) + 100,
+        workouts: Math.floor(Math.random() * 2) + 2,
+      }
+
+      setGoogleFitGoals((prev) => ({
+        steps: {
+          ...prev.steps,
+          achieved: simulatedWeeklyData.steps,
+          completed: simulatedWeeklyData.steps >= prev.steps.target,
+        },
+        activeMinutes: {
+          ...prev.activeMinutes,
+          achieved: simulatedWeeklyData.activeMinutes,
+          completed: simulatedWeeklyData.activeMinutes >= prev.activeMinutes.target,
+        },
+        calories: {
+          ...prev.calories,
+          achieved: simulatedWeeklyData.calories,
+          completed: simulatedWeeklyData.calories >= prev.calories.target,
+        },
+        distance: {
+          ...prev.distance,
+          achieved: simulatedWeeklyData.distance,
+          completed: simulatedWeeklyData.distance >= prev.distance.target,
+        },
+        heartPoints: {
+          ...prev.heartPoints,
+          achieved: simulatedWeeklyData.heartPoints,
+          completed: simulatedWeeklyData.heartPoints >= prev.heartPoints.target,
+        },
+        workouts: {
+          ...prev.workouts,
+          achieved: simulatedWeeklyData.workouts,
+          completed: simulatedWeeklyData.workouts >= prev.workouts.target,
+        },
+      }))
+
+      // Update achievement streak
+      const today = new Date().toDateString()
+      if (lastAchievementDate !== today) {
+        setAchievementStreak((prev) => prev + 1)
+        setLastAchievementDate(today)
+      }
+    } catch (error) {
+      console.error("Failed to fetch Google Fit data:", error)
+    }
+  }
+
+  const triggerWeeklyGoalsReward = () => {
+    if (navigator.vibrate) {
+      navigator.vibrate([300, 150, 300, 150, 300])
+    }
+
+    const thunderAudio = new Audio("/gymonad-assets/thunder.mp3")
+    thunderAudio.volume = 0.8
+    thunderAudio.play().catch(console.error)
+
+    // Award bonus tickets for weekly completion
+    setTickets((prev) => prev + 3)
+    setWeeklyRewardClaimed(true)
+
+    audioController.playAchievementSound()
+  }
+
+  const resetWeeklyProgress = () => {
+    setGoogleFitGoals({
+      steps: { target: 70000, achieved: 0, completed: false },
+      activeMinutes: { target: 210, achieved: 0, completed: false },
+      calories: { target: 14000, achieved: 0, completed: false },
+      distance: { target: 56000, achieved: 0, completed: false },
+      heartPoints: { target: 150, achieved: 0, completed: false },
+      workouts: { target: 3, achieved: 0, completed: false },
+    })
+    setWeeklyRewardClaimed(false)
+    setAchievementStreak(0)
+    setLastAchievementDate(null)
+
+    const currentWeek = getWeekKey()
+    localStorage.setItem("gymonad_goals_week", currentWeek)
   }
 
   return (
@@ -177,231 +245,165 @@ export default function WorkoutPage() {
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-2 font-serif text-yellow-500">Workout Spot</h1>
-          <p className="text-purple-300">Set and check in at your designated workout location</p>
+          <h1 className="text-4xl font-bold mb-2 font-serif text-yellow-500">Google Fit Achievements</h1>
+          <p className="text-purple-300">Complete weekly fitness goals for bonus tickets</p>
         </div>
 
         <div className="grid gap-6 max-w-md mx-auto px-4 w-full">
-          {/* Current Workout Spot */}
-          <Card className="bg-purple-100 border-purple-300 shadow-lg">
+          {/* Weekly Goals Completion Banner */}
+          {weeklyGoalsCompleted && (
+            <Card className="bg-gradient-to-br from-yellow-200 to-amber-200 border-yellow-500 shadow-xl">
+              <CardHeader className="text-center">
+                <CardTitle className="flex items-center justify-center gap-2 text-amber-900">
+                  <Zap className="h-6 w-6 text-yellow-600" />
+                  Weekly Goals Completed!
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-center">
+                <div className="text-6xl mb-2">🏆</div>
+                <p className="text-amber-800 font-bold">
+                  {weeklyRewardClaimed ? "3 bonus tickets awarded!" : "Claiming bonus tickets..."}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Achievement Streak */}
+          <Card className="bg-gradient-to-br from-purple-100 to-indigo-100 border-purple-300 shadow-lg">
             <CardHeader className="text-center">
               <CardTitle className="flex items-center justify-center gap-2 text-purple-900">
-                <MapPin className="h-6 w-6 text-purple-600" />
-                Your Workout Spot
+                <TrendingUp className="h-6 w-6 text-purple-600" />
+                Achievement Streak
               </CardTitle>
-              <CardDescription className="text-purple-700">
-                Designated location for earning check-in tickets
-              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {!workoutSpot ? (
-                <div className="text-center space-y-4">
-                  <div className="h-16 w-16 border-2 border-dashed border-purple-400 rounded-full mx-auto flex items-center justify-center">
-                    <MapPin className="h-8 w-8 text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="text-purple-700 font-medium mb-2">No workout spot set</p>
-                    <p className="text-sm text-purple-600">
-                      Choose your designated workout location to start earning tickets
-                    </p>
-                  </div>
-                  <Button
-                    onClick={setWorkoutSpotLocation}
-                    disabled={locationLoading}
-                    className="w-full bg-purple-600 hover:bg-purple-700 text-white"
-                  >
-                    {locationLoading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Getting Location...
-                      </>
-                    ) : (
-                      <>
-                        <Navigation className="h-4 w-4 mr-2" />
-                        Set Workout Spot
-                      </>
-                    )}
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="bg-purple-50 rounded-lg p-4 text-center">
-                    <div className="h-12 w-12 bg-purple-500 rounded-full mx-auto mb-3 flex items-center justify-center">
-                      <MapPin className="h-6 w-6 text-white" />
-                    </div>
-                    <h3 className="font-bold text-purple-900 text-lg">{workoutSpot.name}</h3>
-                    <p className="text-sm text-purple-600">Your designated workout spot</p>
-                    {lastSpotChange && (
-                      <p className="text-xs text-purple-500 mt-2">
-                        Set on: {new Date(lastSpotChange).toLocaleDateString()}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="border-t border-purple-200 pt-4">
-                    <Button
-                      onClick={setWorkoutSpotLocation}
-                      variant="outline"
-                      size="sm"
-                      className="w-full border-purple-400 text-purple-700 bg-transparent"
-                      disabled={!canChangeSpot() || locationLoading}
-                    >
-                      {locationLoading ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Getting Location...
-                        </>
-                      ) : canChangeSpot() ? (
-                        "Change Workout Spot"
-                      ) : (
-                        `Next change: ${getNextChangeDate()?.toLocaleDateString()}`
-                      )}
-                    </Button>
-                    {!canChangeSpot() && (
-                      <p className="text-xs text-purple-600 text-center mt-2">
-                        Workout spots can only be changed once per month
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
+            <CardContent className="text-center">
+              <div className="text-4xl font-bold text-purple-600 mb-2">{achievementStreak}</div>
+              <div className="text-purple-700">Days Active</div>
+              <div className="text-sm text-purple-600 mt-2">Keep completing goals to maintain your streak!</div>
             </CardContent>
           </Card>
 
-          {/* Check-in Section */}
-          {workoutSpot && (
-            <Card className="bg-green-100 border-green-300 shadow-lg">
-              <CardHeader className="text-center">
-                <CardTitle className="flex items-center justify-center gap-2 text-green-900">
-                  <Calendar className="h-6 w-6 text-green-600" />
-                  Daily Check-in
-                </CardTitle>
-                <CardDescription className="text-green-700">
-                  Check in within 100m of your workout spot • Earn 1 ticket
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {checkedIn ? (
-                  <div className="text-center space-y-3">
-                    <CheckCircle className="h-16 w-16 text-green-500 mx-auto" />
-                    <Badge variant="default" className="bg-green-500 text-white text-lg px-4 py-2">
-                      ✓ Checked in today!
-                    </Badge>
-                    {lastCheckIn && <p className="text-sm text-green-700">Last check-in: {lastCheckIn}</p>}
-                    <p className="text-sm text-green-600">at {workoutSpot.name}</p>
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                      <p className="text-sm text-green-800">
-                        🎫 You earned 1 ticket! Come back tomorrow for another check-in.
-                      </p>
+          {/* Weekly Google Fit Goals */}
+          <Card className="bg-blue-100 border-blue-300 shadow-lg">
+            <CardHeader className="text-center">
+              <CardTitle className="flex items-center justify-center gap-2 text-blue-900">
+                <Target className="h-6 w-6 text-blue-600" />
+                Weekly Fitness Goals
+              </CardTitle>
+              <CardDescription className="text-blue-700">
+                Complete all goals for 3 bonus tickets + thunder reward
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {Object.entries(googleFitGoals).map(([key, goal]) => (
+                <div key={key} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="font-medium text-blue-900 capitalize">
+                      {key === "activeMinutes" ? "Active Minutes" : key === "heartPoints" ? "Heart Points" : key}
+                    </div>
+                    <div
+                      className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                        goal.completed ? "bg-green-500 text-white" : "bg-gray-300 text-gray-600"
+                      }`}
+                    >
+                      {goal.completed ? "✓" : "○"}
                     </div>
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    {!userLocation ? (
-                      <Button
-                        onClick={getLocationForCheckIn}
-                        disabled={locationLoading}
-                        className="w-full bg-green-600 hover:bg-green-700 text-white"
-                      >
-                        {locationLoading ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Getting Location...
-                          </>
-                        ) : (
-                          <>
-                            <Navigation className="h-4 w-4 mr-2" />
-                            Get Location to Check In
-                          </>
-                        )}
-                      </Button>
-                    ) : (
-                      <div className="space-y-3">
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
-                          <p className="text-sm text-green-800 font-medium">
-                            Distance: {Math.round(calculateDistance(userLocation, workoutSpot))}m away
-                          </p>
-                          <p className="text-xs text-green-600 mt-1">
-                            {calculateDistance(userLocation, workoutSpot) <= 100
-                              ? "✓ Within check-in range"
-                              : "❌ Too far from workout spot"}
-                          </p>
-                        </div>
-                        <Button
-                          onClick={handleWorkoutCheckIn}
-                          disabled={checkingIn || calculateDistance(userLocation, workoutSpot) > 100}
-                          className={`w-full ${
-                            calculateDistance(userLocation, workoutSpot) <= 100
-                              ? "bg-green-500 hover:bg-green-600"
-                              : "bg-gray-400 cursor-not-allowed"
-                          } text-white`}
-                        >
-                          {checkingIn ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Checking In...
-                            </>
-                          ) : calculateDistance(userLocation, workoutSpot) <= 100 ? (
-                            <>
-                              <CheckCircle className="h-4 w-4 mr-2" />
-                              Check In Now
-                            </>
-                          ) : (
-                            "Too Far Away (100m max)"
-                          )}
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Set Workout Spot Name */}
-          {settingSpot && userLocation && (
-            <Card className="bg-yellow-100 border-yellow-300 shadow-lg">
-              <CardHeader className="text-center">
-                <CardTitle className="text-yellow-900">Name Your Workout Spot</CardTitle>
-                <CardDescription className="text-yellow-700">
-                  Give your workout location a memorable name
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <input
-                    type="text"
-                    placeholder="e.g., Home Gym, Local Park, Fitness Center..."
-                    className="w-full p-3 border border-yellow-300 rounded-lg text-sm"
-                    onKeyPress={(e) => {
-                      if (e.key === "Enter") {
-                        confirmWorkoutSpot((e.target as HTMLInputElement).value)
-                      }
-                    }}
-                  />
-                  <div className="flex gap-3">
-                    <Button
-                      onClick={() => {
-                        const input = document.querySelector('input[placeholder*="Home Gym"]') as HTMLInputElement
-                        confirmWorkoutSpot(input?.value || "My Workout Spot")
-                      }}
-                      className="flex-1 bg-green-500 hover:bg-green-600 text-white"
-                    >
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Confirm Spot
-                    </Button>
-                    <Button
-                      onClick={() => setSettingSpot(false)}
-                      variant="outline"
-                      className="flex-1 border-yellow-400 text-yellow-700"
-                    >
-                      Cancel
-                    </Button>
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-sm text-blue-700">
+                      <span>
+                        {goal.achieved.toLocaleString()} / {goal.target.toLocaleString()}
+                        {key === "distance"
+                          ? "m"
+                          : key === "calories"
+                            ? " cal"
+                            : key === "activeMinutes"
+                              ? " min"
+                              : key === "heartPoints"
+                                ? " pts"
+                                : key === "workouts"
+                                  ? " sessions"
+                                  : ""}
+                      </span>
+                      <span>{Math.round((goal.achieved / goal.target) * 100)}%</span>
+                    </div>
+                    <Progress
+                      value={Math.min((goal.achieved / goal.target) * 100, 100)}
+                      className="h-2 bg-blue-200 [&>div]:bg-blue-500"
+                    />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* Google Fit Connection */}
+          <Card className="bg-green-100 border-green-300 shadow-lg">
+            <CardHeader className="text-center">
+              <CardTitle className="flex items-center justify-center gap-2 text-green-900">
+                <Activity className="h-6 w-6 text-green-600" />
+                Google Fit Connection
+              </CardTitle>
+              <CardDescription className="text-green-700">Required for comprehensive fitness tracking</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {googleFitConfigError && (
+                <div className="bg-amber-50 border border-amber-300 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="text-amber-600 text-xl">⚠️</div>
+                    <div>
+                      <h4 className="font-medium text-amber-800 mb-1">Demo Mode Active</h4>
+                      <p className="text-sm text-amber-700">{googleFitConfigError}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between">
+                <span className="text-green-800 font-medium">Connection Status</span>
+                <button
+                  onClick={() => {
+                    if (googleFitConnected) {
+                      setGoogleFitConnected(false)
+                    } else {
+                      connectGoogleFit()
+                    }
+                  }}
+                  disabled={googleFitLoading}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    googleFitConnected
+                      ? "bg-green-500 text-white"
+                      : googleFitLoading
+                        ? "bg-gray-300 text-gray-600"
+                        : "bg-green-500 text-white hover:bg-green-600"
+                  }`}
+                >
+                  {googleFitLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin inline" />
+                      Connecting...
+                    </>
+                  ) : googleFitConnected ? (
+                    "✓ Connected"
+                  ) : (
+                    "Connect Google Fit"
+                  )}
+                </button>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-800 mb-2">
+                  <strong>Demo Mode:</strong> Try achievement functionality
+                </p>
+                <button
+                  onClick={fetchGoogleFitAchievements}
+                  className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                  Simulate Weekly Progress (Demo)
+                </button>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Tickets Earned */}
           <Card className="bg-gradient-to-br from-yellow-100 to-amber-100 border-yellow-400 shadow-lg">
@@ -410,9 +412,9 @@ export default function WorkoutPage() {
                 <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center text-black font-bold text-sm">
                   T
                 </div>
-                Check-in Tickets
+                Achievement Tickets
               </CardTitle>
-              <CardDescription className="text-amber-700">Earn lottery entries through daily check-ins</CardDescription>
+              <CardDescription className="text-amber-700">Weekly goal completion rewards</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="text-center">
@@ -422,34 +424,28 @@ export default function WorkoutPage() {
 
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
                 <div className="text-center text-sm text-amber-800">
-                  <p className="font-medium">Daily Check-in Rewards:</p>
-                  <p>• 1 ticket per successful check-in</p>
-                  <p>• Must be within 100m of workout spot</p>
-                  <p>• One check-in per day maximum</p>
+                  <p className="font-medium">Weekly Achievement Rewards:</p>
+                  <p>• 3 tickets for completing all weekly goals</p>
+                  <p>• Thunder sound + vibration celebration</p>
+                  <p>• Streak bonus for consecutive weeks</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Location Error */}
-          {locationError && (
-            <Card className="bg-red-100 border-red-300 shadow-lg">
-              <CardContent className="p-4">
-                <div className="text-center">
-                  <p className="text-sm text-red-600 font-medium">Location Error</p>
-                  <p className="text-sm text-red-700 mt-1">{locationError}</p>
-                  <Button
-                    onClick={() => setLocationError(null)}
-                    variant="outline"
-                    size="sm"
-                    className="mt-3 border-red-400 text-red-700"
-                  >
-                    Dismiss
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          {/* Reset Button */}
+          <Card className="bg-red-100 border-red-300 shadow-lg">
+            <CardContent className="pt-6">
+              <Button
+                onClick={resetWeeklyProgress}
+                variant="destructive"
+                className="w-full bg-red-600 hover:bg-red-700"
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Reset Weekly Progress
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </PageLayout>

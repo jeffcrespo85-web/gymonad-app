@@ -2,6 +2,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Home, Activity, MapPin, Trophy, Wallet, Gamepad2 } from "lucide-react"
+import { audioController } from "@/lib/audio-controller"
 
 const navigationItems = [
   { href: "/", label: "Home", icon: Home },
@@ -15,6 +16,10 @@ const navigationItems = [
 export function Navigation() {
   const pathname = usePathname()
 
+  const handleNavClick = () => {
+    audioController.playSwordClash()
+  }
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-sm border-t border-purple-500/30 z-50">
       <div className="flex justify-around items-center py-2 px-4 max-w-md mx-auto">
@@ -26,6 +31,7 @@ export function Navigation() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={handleNavClick}
               className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
                 isActive
                   ? "text-yellow-400 bg-purple-600/20"
