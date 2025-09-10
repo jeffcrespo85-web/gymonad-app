@@ -6,7 +6,7 @@ class AudioController {
 
   startBackgroundMusic() {
     if (!this.musicStarted && typeof window !== "undefined") {
-      this.backgroundMusic = new Audio("https://hebbkx1anhila5yf.public.blob.vercel-storage.com/gymonadtheme-Fuh0xpQtOA63uufs61fIneHPY136tL.mp3")
+      this.backgroundMusic = new Audio("/gymonad-assetshttps://hebbkx1anhila5yf.public.blob.vercel-storage.com/gymonadtheme-Fuh0xpQtOA63uufs61fIneHPY136tL.mp3")
       this.backgroundMusic.loop = false
       this.backgroundMusic.volume = this.isMuted ? 0 : 0.1 // Very low volume
       this.backgroundMusic.play().catch(() => {})
