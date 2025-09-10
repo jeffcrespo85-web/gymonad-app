@@ -40,12 +40,21 @@ async function switchToMonadTestnet(ethereum: any): Promise<void> {
       console.log(`[v0] Successfully switched to existing Monad testnet`)
       return
     } catch (switchError: any) {
-      // If error code is 4902, the chain hasn't been added yet
-      if (switchError.code !== 4902) {
-        // For other errors, throw them
+      // Handle various error cases that indicate the chain needs to be added
+      const needsToAddChain =
+        switchError.code === 4902 || // Standard "chain not added" error
+        switchError.message?.includes("not connected to the requested chain") || // Provider connection error
+        switchError.message?.includes("Unrecognized chain ID") || // Chain not recognized
+        switchError.message?.includes("does not exist") // Chain doesn't exist
+
+      if (!needsToAddChain) {
+        // For user rejection or other non-chain-related errors, throw them
+        if (switchError.code === 4001) {
+          throw new Error("User rejected the network switch request")
+        }
         throw switchError
       }
-      // Continue to add the network
+      // Continue to add the network for all chain-related errors
     }
 
     // Try each RPC URL until one works for adding the network

@@ -13,6 +13,7 @@ import { GymTokenSystem } from "@/lib/gym-token-system"
 declare global {
   interface Window {
     gapi?: any
+    google?: any
   }
 }
 
@@ -27,7 +28,6 @@ export default function StepsPage() {
   const [googleFitLoading, setGoogleFitLoading] = useState(false)
   const [autoStepTracking, setAutoStepTracking] = useState(false)
   const [totalDistance, setTotalDistance] = useState(0)
-  const [googleFitConfigError, setGoogleFitConfigError] = useState<string | null>(null)
 
   const [googleFitGoals, setGoogleFitGoals] = useState({
     steps: { target: 10000, achieved: 0, completed: false },
@@ -40,6 +40,8 @@ export default function StepsPage() {
 
   const [gymTokens, setGymTokens] = useState(0)
   const [connectedWallet, setConnectedWallet] = useState<string | null>(null)
+
+  const [accessToken, setAccessToken] = useState<string | null>(null)
 
   useEffect(() => {
     const savedSteps = localStorage.getItem("gymonad_steps")
@@ -64,7 +66,6 @@ export default function StepsPage() {
       setGymTokens(GymTokenSystem.getTokenBalance(savedWallet))
     }
 
-    // Reset goals if it's a new day
     if (savedDate !== today) {
       setGoogleFitGoals({
         steps: { target: 10000, achieved: 0, completed: false },
@@ -147,18 +148,23 @@ export default function StepsPage() {
 
   const initializeGoogleFit = async () => {
     setGoogleFitLoading(true)
-    setGoogleFitConfigError(null)
 
     try {
-      const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+      const CLIENT_ID = "1096427001935-your-client-id.apps.googleusercontent.com" // Replace with actual OAuth2 Client ID
+      const API_KEY = "AIzaSyAj0jVbmQOEYMMTGRJv6s4VS2FsUxTya9Y"
+      const SCOPES = [
+        "https://www.googleapis.com/auth/fitness.activity.read",
+        "https://www.googleapis.com/auth/fitness.body.read",
+        "https://www.googleapis.com/auth/fitness.location.read",
+      ]
 
-      if (!clientId || clientId === "YOUR_GOOGLE_CLIENT_ID") {
-        setGoogleFitConfigError(
-          "Google Fit requires setup. Using demo mode for now. Configure NEXT_PUBLIC_GOOGLE_CLIENT_ID for full functionality.",
-        )
-        setGoogleFitLoading(false)
-        return // Exit early to allow demo mode
-      }
+      await new Promise((resolve, reject) => {
+        const script = document.createElement("script")
+        script.src = "https://accounts.google.com/gsi/client"
+        script.onload = resolve
+        script.onerror = reject
+        document.head.appendChild(script)
+      })
 
       await new Promise((resolve, reject) => {
         const script = document.createElement("script")
@@ -169,25 +175,44 @@ export default function StepsPage() {
       })
 
       await new Promise((resolve) => {
-        window.gapi.load("auth2", resolve)
+        window.gapi.load("client", resolve)
       })
 
-      await window.gapi.auth2.init({
-        client_id: clientId,
+      await window.gapi.client.init({
+        apiKey: API_KEY,
+        discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/fitness/v1/rest"],
       })
 
-      setGoogleFitConnected(true)
-      setGoogleFitLoading(false)
+      const tokenClient = window.google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPES.join(" "),
+        callback: (response: any) => {
+          if (response.access_token) {
+            setAccessToken(response.access_token)
+            window.gapi.client.setToken({ access_token: response.access_token })
+            setGoogleFitConnected(true)
+            setGoogleFitLoading(false)
+          }
+        },
+      })
+
+      tokenClient.requestAccessToken()
     } catch (error: any) {
       console.error("Google Fit initialization failed:", error)
       setGoogleFitLoading(false)
 
-      if (error.error === "idpiframe_initialization_failed") {
-        setGoogleFitConfigError(
-          "Google Fit setup incomplete. Please register your domain in Google Console or use demo mode.",
-        )
+      if (error?.error?.code === 403 && error?.error?.message?.includes("Fitness API has not been used")) {
+        alert(`Google Fitness API Setup Required:
+
+1. Go to Google Cloud Console: https://console.developers.google.com/
+2. Select your project (ID: 1096427001935)
+3. Enable the Fitness API: https://console.developers.google.com/apis/api/fitness.googleapis.com/overview?project=1096427001935
+4. Create OAuth2 credentials and update the Client ID in the code
+5. Wait a few minutes for changes to propagate
+
+Current error: Fitness API is not enabled for your project.`)
       } else {
-        setGoogleFitConfigError("Google Fit connection failed. Using demo mode instead.")
+        alert("Failed to connect to Google Fit. Please check your internet connection and try again.")
       }
     }
   }
@@ -197,50 +222,88 @@ export default function StepsPage() {
       await initializeGoogleFit()
     } catch (error) {
       console.error("Failed to connect Google Fit:", error)
-      setGoogleFitConfigError("Google Fit connection failed. Demo mode available below.")
+      alert("Google Fit connection failed. Please try again.")
     }
   }
 
   const fetchGoogleFitSteps = async () => {
-    if (!googleFitConnected) return
+    if (!googleFitConnected || !accessToken) return
 
     try {
-      const simulatedData = {
-        steps: Math.floor(Math.random() * 5000) + steps,
-        activeMinutes: Math.floor(Math.random() * 45),
-        calories: Math.floor(Math.random() * 1500) + 500,
-        distance: Math.floor(Math.random() * 6000) + 2000,
-      }
+      const now = new Date()
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000)
 
-      setSteps(simulatedData.steps)
+      const startTimeNanos = startOfDay.getTime() * 1000000
+      const endTimeNanos = endOfDay.getTime() * 1000000
 
-      // Update Google Fit goals
+      const stepsResponse = await window.gapi.client.fitness.users.dataSources.dataPointChanges.list({
+        userId: "me",
+        dataSourceId: "derived:com.google.step_count.delta:com.google.android.gms:estimated_steps",
+        startTime: startTimeNanos.toString(),
+        endTime: endTimeNanos.toString(),
+      })
+
+      const caloriesResponse = await window.gapi.client.fitness.users.dataSources.dataPointChanges.list({
+        userId: "me",
+        dataSourceId: "derived:com.google.calories.expended:com.google.android.gms:merge_calories_expended",
+        startTime: startTimeNanos.toString(),
+        endTime: endTimeNanos.toString(),
+      })
+
+      const distanceResponse = await window.gapi.client.fitness.users.dataSources.dataPointChanges.list({
+        userId: "me",
+        dataSourceId: "derived:com.google.distance.delta:com.google.android.gms:merge_distance_delta",
+        startTime: startTimeNanos.toString(),
+        endTime: endTimeNanos.toString(),
+      })
+
+      const totalSteps =
+        stepsResponse.result.insertedDataPoint?.reduce((sum: number, point: any) => {
+          return sum + (point.value?.[0]?.intVal || 0)
+        }, 0) || 0
+
+      const totalCalories =
+        caloriesResponse.result.insertedDataPoint?.reduce((sum: number, point: any) => {
+          return sum + (point.value?.[0]?.fpVal || 0)
+        }, 0) || 0
+
+      const totalDistance =
+        distanceResponse.result.insertedDataPoint?.reduce((sum: number, point: any) => {
+          return sum + (point.value?.[0]?.fpVal || 0)
+        }, 0) || 0
+
+      const activeMinutes = Math.floor(totalSteps / 100)
+
+      setSteps(totalSteps)
+
       setGoogleFitGoals((prev) => ({
         steps: {
           ...prev.steps,
-          achieved: simulatedData.steps,
-          completed: simulatedData.steps >= prev.steps.target,
+          achieved: totalSteps,
+          completed: totalSteps >= prev.steps.target,
         },
         activeMinutes: {
           ...prev.activeMinutes,
-          achieved: simulatedData.activeMinutes,
-          completed: simulatedData.activeMinutes >= prev.activeMinutes.target,
+          achieved: activeMinutes,
+          completed: activeMinutes >= prev.activeMinutes.target,
         },
         calories: {
           ...prev.calories,
-          achieved: simulatedData.calories,
-          completed: simulatedData.calories >= prev.calories.target,
+          achieved: Math.floor(totalCalories),
+          completed: totalCalories >= prev.calories.target,
         },
         distance: {
           ...prev.distance,
-          achieved: simulatedData.distance,
-          completed: simulatedData.distance >= prev.distance.target,
+          achieved: Math.floor(totalDistance),
+          completed: totalDistance >= prev.distance.target,
         },
       }))
 
-      checkMilestones(simulatedData.steps)
+      checkMilestones(totalSteps)
     } catch (error) {
       console.error("Failed to fetch Google Fit data:", error)
+      alert("Failed to sync with Google Fit. Please try reconnecting.")
     }
   }
 
@@ -279,7 +342,6 @@ export default function StepsPage() {
       }
     })
 
-    // Award tickets for every 2,000 steps
     const ticketSteps = Math.floor(newSteps / 2000) * 2000
     if (ticketSteps > lastTicketSteps) {
       const newTickets = Math.floor((ticketSteps - lastTicketSteps) / 2000)
@@ -296,21 +358,17 @@ export default function StepsPage() {
   }
 
   const triggerDailyGoalsReward = () => {
-    // Trigger phone vibration
     if (navigator.vibrate) {
       navigator.vibrate([200, 100, 200, 100, 200])
     }
 
-    // Play thunder sound effect
     const thunderAudio = new Audio("/gymonad-assets/thunder.mp3")
     thunderAudio.volume = 0.7
     thunderAudio.play().catch(console.error)
 
-    // Award bonus ticket
     setTickets((prev) => prev + 1)
     setDailyGoalsRewardClaimed(true)
 
-    // Play achievement sound
     audioController.playAchievementSound()
 
     if (connectedWallet) {
@@ -324,7 +382,6 @@ export default function StepsPage() {
   return (
     <PageLayout>
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
-        {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-2 font-serif text-yellow-500">Step Tracking</h1>
           <p className="text-purple-300">Complete all Google Fit goals for bonus rewards</p>
@@ -437,16 +494,9 @@ export default function StepsPage() {
                   </div>
                 </div>
               ))}
-
-              {!googleFitConnected && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                  <p className="text-sm text-amber-700 text-center">Connect Google Fit to track all daily goals</p>
-                </div>
-              )}
             </CardContent>
           </Card>
 
-          {/* Google Fit Integration */}
           <Card className="bg-green-100 border-green-300 shadow-lg">
             <CardHeader className="text-center">
               <CardTitle className="text-green-900">Google Fit Connection</CardTitle>
@@ -455,32 +505,18 @@ export default function StepsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {googleFitConfigError && (
-                <div className="bg-amber-50 border border-amber-300 rounded-lg p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="text-amber-600 text-xl">⚠️</div>
-                    <div>
-                      <h4 className="font-medium text-amber-800 mb-1">Demo Mode Active</h4>
-                      <p className="text-sm text-amber-700 mb-3">{googleFitConfigError}</p>
-                      <div className="text-xs text-amber-600 space-y-1">
-                        <p>
-                          <strong>To enable full Google Fit integration:</strong>
-                        </p>
-                        <p>1. Get a Google Client ID from Google Console</p>
-                        <p>2. Add NEXT_PUBLIC_GOOGLE_CLIENT_ID to environment variables</p>
-                        <p>3. Register your domain as authorized origin</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                 <p className="text-sm text-green-800">
                   📱 Google Fit provides comprehensive fitness data including steps, active minutes, calories, and
                   distance.
                   <br />• Data syncs automatically every 5 minutes
                   <br />• Complete all daily goals for bonus rewards
+                  <br />
+                  <br />
+                  <strong>Setup Required:</strong>
+                  <br />• Enable Fitness API in Google Cloud Console
+                  <br />• Configure OAuth2 Client ID
+                  <br />• Project ID: 1096427001935
                 </p>
               </div>
 
@@ -491,6 +527,7 @@ export default function StepsPage() {
                     if (googleFitConnected) {
                       setGoogleFitConnected(false)
                       setAutoStepTracking(false)
+                      setAccessToken(null)
                     } else {
                       connectGoogleFit()
                     }
@@ -516,21 +553,6 @@ export default function StepsPage() {
                   )}
                 </button>
               </div>
-
-              {!googleFitConnected && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <p className="text-sm text-blue-800 mb-2">
-                    <strong>Demo Mode:</strong>{" "}
-                    {googleFitConfigError ? "Google Fit not configured" : "Try demo functionality"}
-                  </p>
-                  <button
-                    onClick={fetchGoogleFitSteps}
-                    className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                  >
-                    Simulate Fitness Data (Demo)
-                  </button>
-                </div>
-              )}
 
               {googleFitConnected && (
                 <div className="flex items-center justify-between">
@@ -564,7 +586,6 @@ export default function StepsPage() {
             </CardContent>
           </Card>
 
-          {/* Tickets Earned */}
           <Card className="bg-gradient-to-br from-yellow-100 to-amber-100 border-yellow-400 shadow-lg">
             <CardHeader className="text-center">
               <CardTitle className="flex items-center justify-center gap-2 text-amber-900">
@@ -598,7 +619,6 @@ export default function StepsPage() {
             </CardContent>
           </Card>
 
-          {/* Reset Button */}
           <Card className="bg-red-100 border-red-300 shadow-lg">
             <CardContent className="pt-6">
               <Button onClick={resetStepsValue} variant="destructive" className="w-full bg-red-600 hover:bg-red-700">

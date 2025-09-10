@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
-import { Activity, MapPin, Trophy, Wallet, ExternalLink, Download, Volume2, VolumeX } from "lucide-react"
+import { Activity, Trophy, Wallet, ExternalLink, Download, Volume2, VolumeX } from "lucide-react"
 import { PageLayout } from "@/components/page-layout"
 import Link from "next/link"
 import { audioController } from "@/lib/audio-controller"
@@ -21,7 +21,6 @@ export default function Dashboard() {
   const [tickets, setTickets] = useState(0)
   const [checkedIn, setCheckedIn] = useState(false)
   const [lastCheckIn, setLastCheckIn] = useState<string | null>(null)
-  const [workoutSpot, setWorkoutSpot] = useState<any>(null)
   const [connectedWallet, setConnectedWallet] = useState<string | null>(null)
   const [walletAddress, setWalletAddress] = useState<string | null>(null)
   const [lotteryEntries, setLotteryEntries] = useState(0)
@@ -36,7 +35,6 @@ export default function Dashboard() {
       const savedTickets = localStorage.getItem("gymonad_tickets")
       const savedCheckedIn = localStorage.getItem("gymonad_checked_in_today")
       const savedLastCheckIn = localStorage.getItem("gymonad_last_checkin")
-      const savedWorkoutSpot = localStorage.getItem("gymonad_workout_spot")
       const savedWallet = localStorage.getItem("gymonad_connected_wallet")
       const savedWalletAddress = localStorage.getItem("gymonad_wallet_address")
       const savedLotteryEntries = localStorage.getItem("gymonad_lottery_entries")
@@ -46,7 +44,6 @@ export default function Dashboard() {
       if (savedTickets) setTickets(Number.parseInt(savedTickets))
       if (savedCheckedIn) setCheckedIn(savedCheckedIn === "true")
       if (savedLastCheckIn) setLastCheckIn(savedLastCheckIn)
-      if (savedWorkoutSpot) setWorkoutSpot(JSON.parse(savedWorkoutSpot))
       if (savedWallet) setConnectedWallet(savedWallet)
       if (savedWalletAddress) setWalletAddress(savedWalletAddress)
       if (savedLotteryEntries) setLotteryEntries(Number.parseInt(savedLotteryEntries))
@@ -242,12 +239,6 @@ export default function Dashboard() {
                 <Button className="w-full bg-purple-500 hover:bg-purple-600 text-white justify-start">
                   <Activity className="h-4 w-4 mr-2" />
                   Track Steps
-                </Button>
-              </Link>
-              <Link href="/workout" className="block">
-                <Button className="w-full bg-purple-500 hover:bg-purple-600 text-white justify-start">
-                  <MapPin className="h-4 w-4 mr-2" />
-                  {workoutSpot ? "Check In" : "Set Workout Spot"}
                 </Button>
               </Link>
               <Link href="/lottery" className="block">
