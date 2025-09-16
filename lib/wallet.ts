@@ -153,61 +153,53 @@ export class MetaMaskWallet implements WalletAdapter {
   }
 }
 
-export class PhantomEVMWallet implements WalletAdapter {
+export class PhantomWallet implements WalletAdapter {
   name = "Phantom"
   icon = "👻"
 
   isInstalled(): boolean {
-    if (typeof window === "undefined") return false
-
-    // Check for Phantom in multiple ways for Brave compatibility
-    const hasPhantom =
-      "phantom" in window ||
-      window.ethereum?.isPhantom ||
-      (window.ethereum?.providers && window.ethereum.providers.some((p: any) => p.isPhantom))
-
-    return hasPhantom && (window.phantom?.ethereum || window.ethereum?.isPhantom)
+    return typeof window !== "undefined" && "phantom" in window && window.phantom?.ethereum
   }
 
   async connect(): Promise<string> {
     try {
       if (!this.isInstalled()) {
-        const isBrave = navigator.userAgent.includes("Brave") || (window as any).navigator?.brave?.isBrave
-
-        if (isBrave) {
-          throw new Error(
-            "Phantom wallet not detected in Brave. Please ensure Phantom is installed and enabled in Brave's extension settings.",
-          )
-        }
-        throw new Error("Phantom wallet not installed or EVM not supported")
+        throw new Error("Phantom wallet not installed")
       }
 
-      let phantomProvider = window.phantom?.ethereum
-
-      // Fallback for Brave browser where phantom might be in ethereum providers
-      if (!phantomProvider && window.ethereum?.providers) {
-        phantomProvider = window.ethereum.providers.find((p: any) => p.isPhantom)
+      const phantom = window.phantom?.ethereum
+      if (!phantom) {
+        throw new Error("Phantom Ethereum provider not found")
       }
 
-      // Another fallback for direct ethereum access
-      if (!phantomProvider && window.ethereum?.isPhantom) {
-        phantomProvider = window.ethereum
-      }
-
-      if (!phantomProvider?.request) {
-        throw new Error("Phantom EVM provider not available - please enable Phantom in your browser")
-      }
-
-      const accounts = await phantomProvider.request({
-        method: "eth_requestAccounts",
-      })
-
+      // Request account access
+      const accounts = await phantom.request({ method: "eth_requestAccounts" })
       if (!accounts || accounts.length === 0) {
         throw new Error("No accounts found in Phantom")
       }
 
-      // Now switch to Monad testnet after we have account access
-      await switchToMonadTestnet(phantomProvider)
+      // Try to switch to Monad testnet, but handle gracefully if unsupported
+      try {
+        await switchToMonadTestnet(phantom)
+        console.log("[v0] Successfully connected to Phantom with Monad testnet")
+      } catch (networkError: any) {
+        // If network switching fails, provide helpful message but still allow connection
+        console.log("[v0] Phantom network switch failed, using default network:", networkError.message)
+
+        // Check if we're on a supported network (Ethereum mainnet/testnets)
+        try {
+          const chainId = await phantom.request({ method: "eth_chainId" })
+          console.log("[v0] Phantom connected on chain:", chainId)
+
+          // Warn user about network compatibility
+          if (chainId !== MONAD_TESTNET_CONFIG.chainId) {
+            console.warn("[v0] Phantom is not on Monad testnet - some features may not work")
+          }
+        } catch (chainError) {
+          console.log("[v0] Could not detect Phantom network:", chainError)
+        }
+      }
+
       return accounts[0]
     } catch (error: any) {
       if (error.code === 4001) {
@@ -216,22 +208,86 @@ export class PhantomEVMWallet implements WalletAdapter {
       if (error.code === -32002) {
         throw new Error("Phantom is already processing a request. Please check your wallet.")
       }
-      if (error.code === -32603) {
-        throw new Error("Phantom internal error. Please try refreshing the page.")
-      }
       if (error.message) {
         throw new Error(error.message)
       }
-      throw new Error(`Phantom EVM connection failed: ${error.toString() || "Unknown error"}`)
+      throw new Error(`Phantom connection failed: ${error.toString() || "Unknown error"}`)
     }
   }
 
   async disconnect(): Promise<void> {
-    console.log("Phantom EVM disconnect requested")
+    console.log("Phantom disconnect requested")
   }
 }
 
-export const walletAdapters = [new PhantomEVMWallet(), new MetaMaskWallet()]
+export class BrowserWallet implements WalletAdapter {
+  name = "Browser Wallet"
+  icon = "🌐"
+
+  isInstalled(): boolean {
+    return (
+      typeof window !== "undefined" && "ethereum" in window && !window.ethereum?.isMetaMask && !window.phantom?.ethereum
+    )
+  }
+
+  async connect(): Promise<string> {
+    try {
+      if (!window.ethereum) {
+        throw new Error("No browser wallet detected. Please install MetaMask or another Web3 wallet.")
+      }
+
+      if (!window.ethereum.request) {
+        throw new Error("Invalid wallet provider - missing request method")
+      }
+
+      const accounts = await window.ethereum.request({ method: "eth_requestAccounts" })
+      if (!accounts || accounts.length === 0) {
+        throw new Error("No accounts found in browser wallet")
+      }
+
+      // Try to switch to Monad testnet, but handle gracefully if unsupported
+      try {
+        await switchToMonadTestnet(window.ethereum)
+        console.log("[v0] Successfully connected to browser wallet with Monad testnet")
+      } catch (networkError: any) {
+        // If network switching fails, provide helpful message but still allow connection
+        console.log("[v0] Browser wallet network switch failed, using default network:", networkError.message)
+
+        // Check current network
+        try {
+          const chainId = await window.ethereum.request({ method: "eth_chainId" })
+          console.log("[v0] Browser wallet connected on chain:", chainId)
+
+          // Warn user about network compatibility
+          if (chainId !== MONAD_TESTNET_CONFIG.chainId) {
+            console.warn("[v0] Browser wallet is not on Monad testnet - some features may not work")
+          }
+        } catch (chainError) {
+          console.log("[v0] Could not detect browser wallet network:", chainError)
+        }
+      }
+
+      return accounts[0]
+    } catch (error: any) {
+      if (error.code === 4001) {
+        throw new Error("User rejected the connection request")
+      }
+      if (error.code === -32002) {
+        throw new Error("Browser wallet is already processing a request. Please check your wallet.")
+      }
+      if (error.message) {
+        throw new Error(error.message)
+      }
+      throw new Error(`Browser wallet connection failed: ${error.toString() || "Unknown error"}`)
+    }
+  }
+
+  async disconnect(): Promise<void> {
+    console.log("Browser wallet disconnect requested")
+  }
+}
+
+export const walletAdapters = [new MetaMaskWallet(), new PhantomWallet(), new BrowserWallet()]
 
 declare global {
   interface Window {

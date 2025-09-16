@@ -33,7 +33,7 @@ class AudioController {
 
   playAchievementSound(callback?: () => void) {
     if (typeof window !== "undefined") {
-      const audio = new Audio("/gymonad-assetshttps://hebbkx1anhila5yf.public.blob.vercel-storage.com/guitarmp3-5NQgvR22O7TRWetiCDZvCln2LFfg6h.mp3")
+      const audio = new Audio("https://hebbkx1anhila5yf.public.blob.vercel-storage.com/guitarmp3-5NQgvR22O7TRWetiCDZvCln2LFfg6h.mp3")
       audio.volume = 0.3
       audio.play().catch(() => {})
 

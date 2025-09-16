@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
-import { Activity, Trophy, Wallet, ExternalLink, Download, Volume2, VolumeX } from "lucide-react"
+import { Activity, Trophy, Wallet, ExternalLink, Download, Volume2, VolumeX, Play } from "lucide-react"
 import { PageLayout } from "@/components/page-layout"
 import Link from "next/link"
 import { audioController } from "@/lib/audio-controller"
@@ -239,6 +239,12 @@ export default function Dashboard() {
                 <Button className="w-full bg-purple-500 hover:bg-purple-600 text-white justify-start">
                   <Activity className="h-4 w-4 mr-2" />
                   Track Steps
+                </Button>
+              </Link>
+              <Link href="/live" className="block">
+                <Button className="w-full bg-red-500 hover:bg-red-600 text-white justify-start">
+                  <Play className="h-4 w-4 mr-2" />
+                  Live Streams
                 </Button>
               </Link>
               <Link href="/lottery" className="block">
