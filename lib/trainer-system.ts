@@ -171,4 +171,14 @@ export class TrainerService {
     }
     return false
   }
+
+  static async enableTrainerStreaming(
+    walletAddress: string,
+    trainerId: string,
+  ): Promise<{ success: boolean; message: string }> {
+    return {
+      success: true,
+      message: "You can now start streaming as a trainer!",
+    }
+  }
 }

@@ -150,8 +150,15 @@ export default function StepsPage() {
     setGoogleFitLoading(true)
 
     try {
-      const CLIENT_ID = "1096427001935-your-client-id.apps.googleusercontent.com" // Replace with actual OAuth2 Client ID
-      const API_KEY = "AIzaSyAj0jVbmQOEYMMTGRJv6s4VS2FsUxTya9Y"
+      const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+      const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY
+
+      if (!CLIENT_ID || !API_KEY) {
+        throw new Error(
+          "Google Fit configuration missing. Please set NEXT_PUBLIC_GOOGLE_CLIENT_ID and NEXT_PUBLIC_GOOGLE_API_KEY environment variables.",
+        )
+      }
+
       const SCOPES = [
         "https://www.googleapis.com/auth/fitness.activity.read",
         "https://www.googleapis.com/auth/fitness.body.read",
@@ -201,18 +208,32 @@ export default function StepsPage() {
       console.error("Google Fit initialization failed:", error)
       setGoogleFitLoading(false)
 
-      if (error?.error?.code === 403 && error?.error?.message?.includes("Fitness API has not been used")) {
+      if (error.message?.includes("configuration missing")) {
+        alert(`Google Fit Setup Required:
+
+1. Go to Google Cloud Console: https://console.cloud.google.com/
+2. Create or select your project
+3. Enable the Fitness API: https://console.cloud.google.com/apis/library/fitness.googleapis.com
+4. Create credentials:
+   - OAuth 2.0 Client ID (for web application)
+   - API Key (restrict to Fitness API)
+5. Add your environment variables:
+   - NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+   - NEXT_PUBLIC_GOOGLE_API_KEY=your-api-key
+
+Current error: ${error.message}`)
+      } else if (error?.error?.code === 403) {
         alert(`Google Fitness API Setup Required:
 
-1. Go to Google Cloud Console: https://console.developers.google.com/
-2. Select your project (ID: 1096427001935)
-3. Enable the Fitness API: https://console.developers.google.com/apis/api/fitness.googleapis.com/overview?project=1096427001935
-4. Create OAuth2 credentials and update the Client ID in the code
-5. Wait a few minutes for changes to propagate
+The Fitness API is not enabled for your project. Please:
+1. Go to: https://console.cloud.google.com/apis/library/fitness.googleapis.com
+2. Click "Enable" for the Fitness API
+3. Wait a few minutes for changes to propagate
+4. Try connecting again
 
-Current error: Fitness API is not enabled for your project.`)
+Error: ${error?.error?.message || "Fitness API not enabled"}`)
       } else {
-        alert("Failed to connect to Google Fit. Please check your internet connection and try again.")
+        alert("Failed to connect to Google Fit. Please check your setup and try again.")
       }
     }
   }
@@ -515,8 +536,8 @@ Current error: Fitness API is not enabled for your project.`)
                   <br />
                   <strong>Setup Required:</strong>
                   <br />• Enable Fitness API in Google Cloud Console
-                  <br />• Configure OAuth2 Client ID
-                  <br />• Project ID: 1096427001935
+                  <br />• Configure OAuth2 Client ID and API Key
+                  <br />• Set environment variables in your Vercel project
                 </p>
               </div>
 

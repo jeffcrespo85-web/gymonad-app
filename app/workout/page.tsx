@@ -109,10 +109,11 @@ export default function WorkoutPage() {
 
     try {
       const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+      const apiKey = process.env.NEXT_PUBLIC_GOOGLE_API_KEY
 
-      if (!clientId || clientId === "YOUR_GOOGLE_CLIENT_ID") {
+      if (!clientId || !apiKey) {
         setGoogleFitConfigError(
-          "Google Fit requires setup. Using demo mode for now. Configure NEXT_PUBLIC_GOOGLE_CLIENT_ID for full functionality.",
+          "Google Fit requires setup. Please configure NEXT_PUBLIC_GOOGLE_CLIENT_ID and NEXT_PUBLIC_GOOGLE_API_KEY environment variables for full functionality.",
         )
         setGoogleFitLoading(false)
         return
@@ -139,7 +140,7 @@ export default function WorkoutPage() {
     } catch (error: any) {
       console.error("Google Fit initialization failed:", error)
       setGoogleFitLoading(false)
-      setGoogleFitConfigError("Google Fit connection failed. Using demo mode instead.")
+      setGoogleFitConfigError("Google Fit connection failed. Demo mode available below.")
     }
   }
 

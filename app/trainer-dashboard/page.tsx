@@ -53,22 +53,18 @@ export default function TrainerDashboard() {
   const [newStreamCategory, setNewStreamCategory] = useState("")
   const [newStreamDuration, setNewStreamDuration] = useState("30")
 
-  // Mock trainer ID - in real app this would come from auth
   const trainerId = "trainer-1"
 
   useEffect(() => {
-    // Load trainer data
     const trainerData = TrainerService.getTrainerById(trainerId)
     if (trainerData) {
       setTrainer(trainerData)
       setIsLive(trainerData.isLive)
     }
 
-    // Load earnings data
     const earningsData = PaymentSystem.getTrainerEarnings(trainerId)
     setEarnings(earningsData)
 
-    // Mock stream sessions
     const mockSessions: StreamSession[] = [
       {
         id: "session-1",
@@ -168,7 +164,6 @@ export default function TrainerDashboard() {
   return (
     <PageLayout>
       <div className="container mx-auto px-4 py-8">
-        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
             <Avatar className="w-16 h-16">
@@ -199,9 +194,7 @@ export default function TrainerDashboard() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
-          {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Quick Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Card className="bg-card border-border">
                 <CardContent className="p-4 text-center">
@@ -232,7 +225,6 @@ export default function TrainerDashboard() {
               </Card>
             </div>
 
-            {/* Go Live Section */}
             <Card className="bg-card border-border">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-card-foreground">
@@ -332,7 +324,6 @@ export default function TrainerDashboard() {
               </CardContent>
             </Card>
 
-            {/* Stream History */}
             <Card className="bg-card border-border">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-card-foreground">
@@ -387,9 +378,7 @@ export default function TrainerDashboard() {
             </Card>
           </div>
 
-          {/* Sidebar */}
           <div className="space-y-6">
-            {/* Earnings Summary */}
             <Card className="bg-card border-border">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-card-foreground">
@@ -421,39 +410,6 @@ export default function TrainerDashboard() {
               </CardContent>
             </Card>
 
-            {/* Recent Tips */}
-            <Card className="bg-card border-border">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-card-foreground">
-                  <Gift className="w-5 h-5 text-accent" />
-                  Recent Tips
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {earnings.recentTransactions.slice(0, 5).map((transaction) => (
-                    <div key={transaction.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-lg">
-                      <div>
-                        <div className="font-medium text-sm text-card-foreground">
-                          {PaymentSystem.formatTokenAmount(transaction.amount)}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {transaction.timestamp.toLocaleDateString()}
-                        </div>
-                      </div>
-                      <Badge variant="secondary" className="bg-accent/10 text-accent">
-                        {transaction.type}
-                      </Badge>
-                    </div>
-                  ))}
-                  {earnings.recentTransactions.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-4">No recent transactions</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Quick Actions */}
             <Card className="bg-card border-border">
               <CardHeader>
                 <CardTitle className="text-card-foreground">Quick Actions</CardTitle>
