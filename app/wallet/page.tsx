@@ -56,6 +56,18 @@ export default function WalletPage() {
         toString: error?.toString?.(),
       })
 
+      if (
+        error?.message?.includes("User rejected") ||
+        error?.message?.includes("user rejected") ||
+        error?.message?.includes("User denied") ||
+        error?.message?.includes("user denied") ||
+        error?.code === 4001
+      ) {
+        // User cancelled the connection - don't show error, just reset state
+        console.log("User cancelled wallet connection")
+        return
+      }
+
       let errorMessage = "Unknown connection error"
 
       if (error?.message) {
