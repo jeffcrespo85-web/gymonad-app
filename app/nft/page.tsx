@@ -196,7 +196,7 @@ export default function NFTPage() {
                 <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                   <div className="text-sm text-green-800">
                     <p className="font-medium mb-2">🎁 Holder Rewards:</p>
-                    <p>• 2x lottery ticket multiplier</p>
+                    <p>• 2x $GYM token earning multiplier</p>
                     <p>• Exclusive fitness challenges</p>
                     <p>• Early access to new features</p>
                     <p>• Special Discord community access</p>

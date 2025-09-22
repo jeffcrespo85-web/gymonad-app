@@ -22,7 +22,7 @@ export default function LiveStreamsPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const [sortBy, setSortBy] = useState<"viewers" | "recent" | "tips">("viewers")
 
-  const categories = ["all", "HIIT", "Yoga", "Strength", "Cardio", "Dance", "Flexibility"]
+  const categories = ["all", "Strength", "Cardio"]
 
   useEffect(() => {
     // Load live streams with trainer data
@@ -35,7 +35,6 @@ export default function LiveStreamsPage() {
       }
     })
 
-    // Add some mock additional streams for variety
     const additionalMockStreams: StreamWithTrainer[] = [
       {
         id: "stream-4",
@@ -69,27 +68,27 @@ export default function LiveStreamsPage() {
       {
         id: "stream-5",
         trainerId: "trainer-4",
-        title: "Dance Cardio Party",
-        description: "High-energy dance workout that's fun and effective!",
-        category: "Dance",
+        title: "High-Intensity Cardio Blast",
+        description: "Get your heart pumping with this intense cardio session!",
+        category: "Cardio",
         isLive: true,
         viewerCount: 62,
         startTime: new Date(Date.now() - 5 * 60 * 1000),
         duration: 45,
-        thumbnailUrl: "/dance-cardio.png",
+        thumbnailUrl: "/cardio-workout.png",
         streamUrl: "https://example.com/stream/5",
         totalTips: 156,
         trainer: {
           id: "trainer-4",
           name: "Jessica Martinez",
-          bio: "Dance instructor and fitness enthusiast bringing joy to workouts.",
-          specialties: ["Dance Fitness", "Cardio", "Fun Workouts"],
+          bio: "Cardio specialist bringing energy to every workout.",
+          specialties: ["Cardio Training", "High-Intensity Training", "Endurance"],
           rating: 4.9,
           totalSessions: 567,
-          profileImage: "/dance-instructor.png",
+          profileImage: "/female-trainer.png",
           isLive: true,
           hourlyRate: 70,
-          certifications: ["Dance Fitness", "Group Fitness"],
+          certifications: ["ACSM", "Group Fitness"],
           experience: 7,
           totalTipsReceived: 1245,
           followers: 3500,

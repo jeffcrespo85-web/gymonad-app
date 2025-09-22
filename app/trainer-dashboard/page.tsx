@@ -5,9 +5,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { PageLayout } from "@/components/page-layout"
 import { TrainerService, type TrainerProfile } from "@/lib/trainer-system"
 import { PaymentSystem, type PaymentTransaction } from "@/lib/payment-system"
@@ -48,10 +45,6 @@ export default function TrainerDashboard() {
     recentTransactions: [] as PaymentTransaction[],
   })
   const [streamSessions, setStreamSessions] = useState<StreamSession[]>([])
-  const [newStreamTitle, setNewStreamTitle] = useState("")
-  const [newStreamDescription, setNewStreamDescription] = useState("")
-  const [newStreamCategory, setNewStreamCategory] = useState("")
-  const [newStreamDuration, setNewStreamDuration] = useState("30")
 
   const trainerId = "trainer-1"
 
@@ -68,23 +61,23 @@ export default function TrainerDashboard() {
     const mockSessions: StreamSession[] = [
       {
         id: "session-1",
-        title: "Morning HIIT Blast - 30 Min Full Body Burn",
+        title: "Morning Strength Training - Full Body Power",
         status: "live",
         scheduledTime: new Date(Date.now() - 15 * 60 * 1000),
-        duration: 30,
+        duration: 45,
         viewerCount: 47,
         totalTips: 125,
-        category: "HIIT",
+        category: "Strength",
       },
       {
         id: "session-2",
-        title: "Evening Yoga Flow",
+        title: "Evening Cardio Blast",
         status: "scheduled",
         scheduledTime: new Date(Date.now() + 2 * 60 * 60 * 1000),
-        duration: 45,
+        duration: 30,
         viewerCount: 0,
         totalTips: 0,
-        category: "Yoga",
+        category: "Cardio",
       },
       {
         id: "session-3",
@@ -101,25 +94,19 @@ export default function TrainerDashboard() {
   }, [])
 
   const handleGoLive = () => {
-    if (!newStreamTitle || !newStreamCategory) return
-
     const newSession: StreamSession = {
       id: `session-${Date.now()}`,
-      title: newStreamTitle,
+      title: "Live Workout Session",
       status: "live",
       scheduledTime: new Date(),
-      duration: Number.parseInt(newStreamDuration),
+      duration: 30,
       viewerCount: 0,
       totalTips: 0,
-      category: newStreamCategory,
+      category: "Strength",
     }
 
     setStreamSessions((prev) => [newSession, ...prev])
     setIsLive(true)
-    setNewStreamTitle("")
-    setNewStreamDescription("")
-    setNewStreamCategory("")
-    setNewStreamDuration("30")
   }
 
   const handleEndStream = () => {
@@ -229,7 +216,7 @@ export default function TrainerDashboard() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-card-foreground">
                   <Play className="w-5 h-5 text-red-500" />
-                  {isLive ? "Currently Live" : "Start New Stream"}
+                  {isLive ? "Currently Live" : "Go Live"}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -256,69 +243,21 @@ export default function TrainerDashboard() {
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div>
-                        <label className="text-sm font-medium text-card-foreground mb-2 block">Stream Title</label>
-                        <Input
-                          placeholder="e.g., Morning HIIT Workout"
-                          value={newStreamTitle}
-                          onChange={(e) => setNewStreamTitle(e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-card-foreground mb-2 block">Category</label>
-                        <Select value={newStreamCategory} onValueChange={setNewStreamCategory}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select category" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="HIIT">HIIT</SelectItem>
-                            <SelectItem value="Yoga">Yoga</SelectItem>
-                            <SelectItem value="Strength">Strength Training</SelectItem>
-                            <SelectItem value="Cardio">Cardio</SelectItem>
-                            <SelectItem value="Flexibility">Flexibility</SelectItem>
-                            <SelectItem value="Dance">Dance Fitness</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                  <div className="text-center space-y-4">
+                    <div className="p-6 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-lg border border-primary/20">
+                      <h3 className="text-xl font-semibold text-primary mb-2">Ready to Go Live?</h3>
+                      <p className="text-muted-foreground mb-4">
+                        Start streaming your workout and connect with your audience
+                      </p>
+                      <Button
+                        onClick={handleGoLive}
+                        size="lg"
+                        className="bg-red-500 hover:bg-red-600 text-white px-8 py-3"
+                      >
+                        <Play className="w-5 h-5 mr-2" />
+                        Go Live Now
+                      </Button>
                     </div>
-                    <div>
-                      <label className="text-sm font-medium text-card-foreground mb-2 block">Description</label>
-                      <Textarea
-                        placeholder="Describe your workout session..."
-                        value={newStreamDescription}
-                        onChange={(e) => setNewStreamDescription(e.target.value)}
-                        rows={3}
-                      />
-                    </div>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div>
-                        <label className="text-sm font-medium text-card-foreground mb-2 block">
-                          Duration (minutes)
-                        </label>
-                        <Select value={newStreamDuration} onValueChange={setNewStreamDuration}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="15">15 minutes</SelectItem>
-                            <SelectItem value="30">30 minutes</SelectItem>
-                            <SelectItem value="45">45 minutes</SelectItem>
-                            <SelectItem value="60">60 minutes</SelectItem>
-                            <SelectItem value="90">90 minutes</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <Button
-                      onClick={handleGoLive}
-                      disabled={!newStreamTitle || !newStreamCategory}
-                      className="w-full bg-red-500 hover:bg-red-600 text-white"
-                    >
-                      <Play className="w-4 h-4 mr-2" />
-                      Go Live Now
-                    </Button>
                   </div>
                 )}
               </CardContent>

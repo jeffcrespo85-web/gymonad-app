@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
-import { Activity, Trophy, Wallet, ExternalLink, Download, Volume2, VolumeX, Play } from "lucide-react"
+import { Activity, Wallet, ExternalLink, Download, Volume2, VolumeX, Play, TrendingUp } from "lucide-react"
 import { PageLayout } from "@/components/page-layout"
 import Link from "next/link"
 import { audioController } from "@/lib/audio-controller"
+import { GymTokenSystem } from "@/lib/gym-token-system"
 
 export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true)
@@ -23,8 +24,7 @@ export default function Dashboard() {
   const [lastCheckIn, setLastCheckIn] = useState<string | null>(null)
   const [connectedWallet, setConnectedWallet] = useState<string | null>(null)
   const [walletAddress, setWalletAddress] = useState<string | null>(null)
-  const [lotteryEntries, setLotteryEntries] = useState(0)
-  const [lastWinner, setLastWinner] = useState<string | null>(null)
+  const [gymTokens, setGymTokens] = useState(0)
 
   useEffect(() => {
     const loadDashboardData = () => {
@@ -37,17 +37,16 @@ export default function Dashboard() {
       const savedLastCheckIn = localStorage.getItem("gymonad_last_checkin")
       const savedWallet = localStorage.getItem("gymonad_connected_wallet")
       const savedWalletAddress = localStorage.getItem("gymonad_wallet_address")
-      const savedLotteryEntries = localStorage.getItem("gymonad_lottery_entries")
-      const savedLastWinner = localStorage.getItem("gymonad_last_winner")
 
       if (savedSteps) setSteps(Number.parseInt(savedSteps))
       if (savedTickets) setTickets(Number.parseInt(savedTickets))
       if (savedCheckedIn) setCheckedIn(savedCheckedIn === "true")
       if (savedLastCheckIn) setLastCheckIn(savedLastCheckIn)
       if (savedWallet) setConnectedWallet(savedWallet)
-      if (savedWalletAddress) setWalletAddress(savedWalletAddress)
-      if (savedLotteryEntries) setLotteryEntries(Number.parseInt(savedLotteryEntries))
-      if (savedLastWinner) setLastWinner(savedLastWinner)
+      if (savedWalletAddress) {
+        setWalletAddress(savedWalletAddress)
+        setGymTokens(GymTokenSystem.getTokenBalance(savedWalletAddress))
+      }
 
       setTimeout(() => {
         setIsLoading(false)
@@ -85,23 +84,6 @@ export default function Dashboard() {
   }
 
   const progressPercentage = Math.min((steps / dailyGoal) * 100, 100)
-  const getTimeUntilLotteryDraw = () => {
-    const now = new Date()
-    const nextSunday = new Date()
-    nextSunday.setDate(now.getDate() + (7 - now.getDay()))
-    nextSunday.setHours(20, 0, 0, 0)
-
-    if (now.getDay() === 0 && now.getHours() < 20) {
-      nextSunday.setDate(now.getDate())
-    }
-
-    const diff = nextSunday.getTime() - now.getTime()
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
-
-    if (days > 0) return `${days}d ${hours}h`
-    return `${hours}h`
-  }
 
   if (isLoading) {
     return (
@@ -247,10 +229,10 @@ export default function Dashboard() {
                   Live Streams
                 </Button>
               </Link>
-              <Link href="/lottery" className="block">
-                <Button className="w-full bg-amber-500 hover:bg-amber-600 text-white justify-start">
-                  <Trophy className="h-4 w-4 mr-2" />
-                  View Lottery ({lotteryEntries} entries)
+              <Link href="/token" className="block">
+                <Button className="w-full bg-green-500 hover:bg-green-600 text-white justify-start">
+                  <TrendingUp className="h-4 w-4 mr-2" />
+                  View $GYM Tokens ({gymTokens} earned)
                 </Button>
               </Link>
             </CardContent>
@@ -290,35 +272,35 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Lottery Preview */}
-          <Card className="bg-gradient-to-br from-yellow-100 to-amber-100 border-yellow-400 shadow-lg">
+          {/* $GYM Token Dashboard */}
+          <Card className="bg-gradient-to-br from-green-100 to-emerald-100 border-green-400 shadow-lg">
             <CardHeader className="text-center">
-              <CardTitle className="flex items-center justify-center gap-2 text-amber-900">
-                <span className="text-2xl">🎰</span>
-                Weekly Lottery
+              <CardTitle className="flex items-center justify-center gap-2 text-green-900">
+                <TrendingUp className="h-6 w-6 text-green-600" />
+                $GYM Token Dashboard
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="grid grid-cols-2 gap-3 text-center">
-                <div className="bg-yellow-200 rounded-lg p-3">
-                  <div className="text-xl font-bold text-amber-900">{lotteryEntries}</div>
-                  <div className="text-sm text-amber-700">Your Entries</div>
+                <div className="bg-green-200 rounded-lg p-3">
+                  <div className="text-xl font-bold text-green-900">{gymTokens}</div>
+                  <div className="text-sm text-green-700">Your Tokens</div>
                 </div>
-                <div className="bg-yellow-200 rounded-lg p-3">
-                  <div className="text-lg font-bold text-amber-900">{getTimeUntilLotteryDraw()}</div>
-                  <div className="text-sm text-amber-700">Next Draw</div>
+                <div className="bg-green-200 rounded-lg p-3">
+                  <div className="text-lg font-bold text-green-900">$0.0028</div>
+                  <div className="text-sm text-green-700">Token Price</div>
                 </div>
               </div>
-              {lastWinner && (
-                <div className="bg-gradient-to-r from-yellow-300 to-amber-300 rounded-lg p-2 text-center">
-                  <div className="text-xs text-amber-800 font-semibold">🏆 Last Winner</div>
-                  <div className="font-mono text-amber-900 text-xs">
-                    {lastWinner.slice(0, 8)}...{lastWinner.slice(-6)}
+              {connectedWallet && (
+                <div className="bg-gradient-to-r from-green-300 to-emerald-300 rounded-lg p-2 text-center">
+                  <div className="text-xs text-green-800 font-semibold">🏆 Your Rank</div>
+                  <div className="font-mono text-green-900 text-sm">
+                    #{GymTokenSystem.getUserRank(connectedWallet) || "Unranked"}
                   </div>
                 </div>
               )}
-              <Link href="/lottery" className="block">
-                <Button className="w-full bg-amber-500 hover:bg-amber-600 text-white">View Full Lottery</Button>
+              <Link href="/token" className="block">
+                <Button className="w-full bg-green-500 hover:bg-green-600 text-white">View Token Dashboard</Button>
               </Link>
             </CardContent>
           </Card>

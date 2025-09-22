@@ -294,10 +294,10 @@ export default function WalletPage() {
 
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                   <div className="text-sm text-yellow-800">
-                    <p className="font-medium mb-2">🎰 Lottery & Rewards:</p>
-                    <p>• Enter weekly MONAD token lottery</p>
-                    <p>• Receive automatic reward distributions</p>
-                    <p>• Track your winning history</p>
+                    <p className="font-medium mb-2">💰 $GYM Token Rewards:</p>
+                    <p>• Earn $GYM tokens for fitness milestones</p>
+                    <p>• Tip streamers and trainers</p>
+                    <p>• Climb the community leaderboard</p>
                   </div>
                 </div>
 

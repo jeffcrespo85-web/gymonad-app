@@ -1,14 +1,14 @@
 "use client"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, Activity, MapPin, Trophy, Wallet, Gamepad2 } from "lucide-react"
+import { Home, Activity, Wallet, Gamepad2, Video, TrendingUp } from "lucide-react"
 import { audioController } from "@/lib/audio-controller"
 
 const navigationItems = [
   { href: "/", label: "Home", icon: Home },
-  { href: "/steps", label: "Steps", icon: Activity },
-  { href: "/workout", label: "Workout", icon: MapPin },
-  { href: "/lottery", label: "Lottery", icon: Trophy },
+  { href: "/workout", label: "Workout", icon: Activity },
+  { href: "/live", label: "Live", icon: Video },
+  { href: "/token", label: "$GYM", icon: TrendingUp },
   { href: "/nft", label: "NFT", icon: Gamepad2 },
   { href: "/wallet", label: "Wallet", icon: Wallet },
 ]
